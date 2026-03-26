@@ -1,0 +1,259 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 20%, transparent), transparent 30%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-alt) 18%, transparent), transparent 24%),
+    linear-gradient(180deg, var(--bg), var(--bg-alt));
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 72px;
+}
+
+.topbar,
+.hero-grid,
+.grid {
+  display: grid;
+  gap: 24px;
+}
+
+.topbar {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 56px;
+}
+
+.brand,
+.eyebrow,
+code,
+pre {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.brand,
+.eyebrow {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.brand {
+  color: var(--accent);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: var(--muted);
+}
+
+.links a:hover,
+.button:hover {
+  opacity: 0.88;
+}
+
+.hero {
+  padding: 18px 0 36px;
+}
+
+.hero-grid {
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.85fr);
+  align-items: end;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  max-width: 10ch;
+  font-size: clamp(3rem, 8vw, 6.25rem);
+  line-height: 0.95;
+  margin-bottom: 20px;
+}
+
+.lede {
+  max-width: 62ch;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.button {
+  border-radius: 999px;
+  padding: 14px 20px;
+  border: 1px solid var(--border);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+  color: #081018;
+  font-weight: 700;
+  border: none;
+}
+
+.button.secondary {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+    var(--panel);
+  backdrop-filter: blur(12px);
+}
+
+.status-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.status-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.status-row strong {
+  max-width: 58%;
+  text-align: right;
+  color: var(--text);
+}
+
+.section-head {
+  margin: 68px 0 20px;
+}
+
+.section-head h2,
+.narrative h2,
+.stack-panel h2,
+.command-panel h2,
+.capability h3 {
+  margin-top: 10px;
+}
+
+.grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.two-up > * {
+  grid-column: span 6;
+}
+
+.capabilities > * {
+  grid-column: span 6;
+}
+
+.narrative,
+.stack-panel,
+.command-panel,
+.capability {
+  min-height: 100%;
+}
+
+.narrative p:last-child,
+.capability p {
+  margin-top: 14px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.stack-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stack-list li {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+pre {
+  margin: 18px 0 0;
+  padding: 18px;
+  overflow-x: auto;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.lower {
+  margin-top: 24px;
+}
+
+@media (max-width: 920px) {
+  .hero-grid,
+  .topbar,
+  .two-up > *,
+  .capabilities > * {
+    grid-template-columns: 1fr;
+    grid-column: 1 / -1;
+  }
+
+  .topbar {
+    gap: 12px;
+  }
+
+  .links {
+    gap: 12px;
+  }
+
+  h1 {
+    max-width: none;
+  }
+}

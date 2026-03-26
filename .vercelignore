@@ -1,0 +1,7 @@
+.git
+.vercel
+.venv
+__pycache__
+tests
+src
+uv.lock
