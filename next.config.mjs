@@ -1,8 +1,7 @@
-// Rewrite the local /api/stats path to the showcase deploy's public
-// telemetry endpoint. Override with NEXT_PUBLIC_API_BASE for local dev.
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  "https://evalops-workbench.vercel.app";
+// Hybrid Next.js + Python deploy. The dashboard and the public /api/stats
+// Python serverless function (api/stats.py) live in the same Vercel project,
+// so the dashboard reaches /api/stats via Vercel's standard routing — no
+// rewrite required.
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -10,11 +9,6 @@ const nextConfig = {
   poweredByHeader: false,
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
-  },
-  async rewrites() {
-    return [
-      { source: "/api/stats", destination: `${API_BASE}/api/stats` },
-    ];
   },
   async headers() {
     return [

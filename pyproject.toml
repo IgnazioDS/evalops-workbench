@@ -19,6 +19,10 @@ evalops-workbench = "evalops_workbench.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# Scope discovery to the Python package only — the Next.js dashboard
+# also lives under src/ and we don't want setuptools treating those
+# directories as Python modules.
+include = ["evalops_workbench*"]
 
 [tool.setuptools.package-data]
 evalops_workbench = ["project.json"]
