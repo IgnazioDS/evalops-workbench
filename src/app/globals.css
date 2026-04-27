@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Design tokens — calibrated for a Vercel-grade dashboard.
+
+   Discipline: neutral surfaces + a single brand accent fired sparingly.
+   Indigo only for active state, brand mark, and primary CTA. Everything
+   else lives in calibrated grays.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  :root,
+  [data-theme="dark"] {
+    /* Surfaces — true near-black with imperceptible cool tilt */
+    --background:        240 10% 3.5%;
+    --surface:           240 8% 6%;
+    --surface-2:         240 7% 9%;
+    --surface-3:         240 6% 12%;
+
+    /* Text tiers */
+    --foreground:        0 0% 96%;
+    --foreground-muted:  240 5% 64%;
+    --foreground-subtle: 240 5% 46%;
+    --foreground-faint:  240 5% 32%;
+
+    /* Borders — three calibrated weights */
+    --border:            240 6% 14%;
+    --border-strong:     240 6% 22%;
+    --border-subtle:     240 6% 9%;
+
+    /* Brand */
+    --brand:             238 84% 67%;
+    --brand-strong:      238 84% 60%;
+    --brand-foreground:  0 0% 100%;
+    --ring:              238 84% 67%;
+
+    /* Semantic */
+    --success: 158 64% 52%;
+    --warning: 38 92% 50%;
+    --danger:  0 72% 60%;
+    --info:    199 89% 48%;
+
+    /* Radii — tight Vercel-style */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius:    var(--radius-lg);
+  }
+
+  [data-theme="light"] {
+    --background:        0 0% 100%;
+    --surface:           0 0% 100%;
+    --surface-2:         240 5% 98%;
+    --surface-3:         240 5% 95%;
+    --foreground:        240 10% 8%;
+    --foreground-muted:  240 5% 36%;
+    --foreground-subtle: 240 5% 50%;
+    --foreground-faint:  240 5% 64%;
+    --border:            240 6% 90%;
+    --border-strong:     240 6% 84%;
+    --border-subtle:     240 6% 94%;
+    --ring:              238 84% 67%;
+  }
+
+  *,
+  *::before,
+  *::after {
+    @apply border-border box-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: hsl(var(--brand) / 0.4);
+    color: hsl(var(--foreground));
+  }
+
+  /* Scrollbars — minimal, only visible when needed */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--foreground-faint));
+    background-clip: padding-box;
+  }
+
+  /* Focus — visible but quiet */
+  :focus-visible {
+    @apply outline-none ring-1 ring-ring ring-offset-1 ring-offset-background;
+  }
+
+  /* Tabular numbers everywhere — dashboards live and die on alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Utility classes — short, composable, no business logic
+   ────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  /* Subtle dot grid — used as a faint background ornament */
+  .dot-grid {
+    background-image: radial-gradient(
+      hsl(var(--foreground) / 0.05) 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
+    background-position: 0 0;
+  }
+
+  /* Linear gradient over the dot grid for stronger framing */
+  .grid-fade {
+    mask-image: radial-gradient(
+      ellipse at center,
+      black 40%,
+      transparent 80%
+    );
+  }
+
+  /* Surface helper — used by Card/Popover. Keeps consistent stacking. */
+  .surface {
+    @apply bg-surface border border-border rounded-lg;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--surface-2)) 0%,
+      hsl(var(--surface-3)) 50%,
+      hsl(var(--surface-2)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* Pulse halo — for status dots indicating live activity */
+  .pulse-halo {
+    position: relative;
+  }
+  .pulse-halo::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.6;
+    animation: pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  }
+
+  /* Inline keyboard chip */
+  .kbd {
+    @apply inline-flex items-center justify-center min-w-[1.25rem] h-5
+           px-1 rounded-sm bg-surface-2 border border-border-strong
+           font-mono text-2xs font-medium text-foreground-muted;
+  }
+
+  /* Code-grade gradient text — used VERY sparingly (logo only) */
+  .text-gradient-brand {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand)) 0%,
+      hsl(var(--brand-strong)) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Subtle elevated card hover treatment */
+  .card-interactive {
+    @apply transition-[border-color,background-color,transform] duration-200 ease-out-expo;
+  }
+  .card-interactive:hover {
+    @apply border-border-strong;
+  }
+
+  /* Page transition wrapper applied to every route's root */
+  .page-enter {
+    animation: fade-up 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* sonner overrides to match Vercel-grade palette */
+[data-sonner-toaster] {
+  --normal-bg: hsl(var(--surface-2));
+  --normal-border: hsl(var(--border-strong));
+  --normal-text: hsl(var(--foreground));
+  --success-bg: hsl(var(--surface-2));
+  --success-border: hsl(var(--success) / 0.4);
+  --success-text: hsl(var(--success));
+  --error-bg: hsl(var(--surface-2));
+  --error-border: hsl(var(--danger) / 0.4);
+  --error-text: hsl(var(--danger));
+}
+
+/* cmdk styling — match the rest of the design system */
+[cmdk-root] {
+  font-family: inherit;
+}
+[cmdk-input] {
+  @apply outline-none border-0 bg-transparent text-foreground placeholder:text-foreground-faint;
+}
+[cmdk-item] {
+  @apply px-3 py-2 rounded-md text-sm cursor-pointer flex items-center gap-3
+         text-foreground-muted transition-colors;
+}
+[cmdk-item][data-selected="true"] {
+  @apply bg-surface-3 text-foreground;
+}
+[cmdk-empty] {
+  @apply px-3 py-6 text-center text-sm text-foreground-subtle;
+}
+[cmdk-group-heading] {
+  @apply px-3 pt-3 pb-1 text-2xs font-medium uppercase tracking-wider text-foreground-faint;
+}

@@ -1,8 +1,30 @@
-.venv/
+# Vercel
+.vercel
+
+# Next.js
+.next/
+out/
+next-env.d.ts.bak
+tsconfig.tsbuildinfo
+
+# Node
+node_modules/
+package-lock.json
+
+# Python
 __pycache__/
-.pytest_cache/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
 dist/
 build/
-*.egg-info/
-.vercel
+
+# OS
+.DS_Store
+
+# Local env
+.env.local
+.env*.local
