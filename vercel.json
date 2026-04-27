@@ -8,6 +8,15 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "/api/stats",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" },
+        { "key": "Cache-Control", "value": "public, max-age=30, stale-while-revalidate=60" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
