@@ -6,3 +6,8 @@ dist/
 build/
 *.egg-info/
 .vercel
+frontend/tsconfig.tsbuildinfo
+frontend/.vercel/
+frontend/node_modules/
+frontend/.next/
+frontend/package-lock.json
