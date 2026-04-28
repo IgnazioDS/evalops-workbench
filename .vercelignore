@@ -1,7 +1,22 @@
-.git
+# Build artifacts (rebuilt on Vercel)
+.next
+node_modules
+package-lock.json
+
+# Vercel internals
 .vercel
+
+# Python local-only
 .venv
 __pycache__
-tests
-src
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+dist
+build
 uv.lock
+
+# OS
+.DS_Store
