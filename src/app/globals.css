@@ -120,18 +120,39 @@
    Utility classes — short, composable, no business logic
    ────────────────────────────────────────────────────────────────────────── */
 @layer components {
-  /* Subtle dot grid — used as a faint background ornament */
+  /* Subtle dot grid — applied via pseudo-element so masks/fades
+     stay isolated to the background pattern and never affect
+     descendant text or data. */
   .dot-grid {
+    position: relative;
+    isolation: isolate;
+  }
+  .dot-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
     background-image: radial-gradient(
       hsl(var(--foreground) / 0.05) 1px,
       transparent 1px
     );
     background-size: 24px 24px;
     background-position: 0 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .dot-grid > * {
+    position: relative;
+    z-index: 1;
   }
 
-  /* Linear gradient over the dot grid for stronger framing */
-  .grid-fade {
+  /* Radial fade — masks only the pseudo-element pattern, leaving
+     foreground children at full opacity (no dark "shade" over text). */
+  .dot-grid.grid-fade::before {
+    -webkit-mask-image: radial-gradient(
+      ellipse at center,
+      black 40%,
+      transparent 80%
+    );
     mask-image: radial-gradient(
       ellipse at center,
       black 40%,
