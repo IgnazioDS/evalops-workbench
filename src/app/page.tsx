@@ -91,6 +91,12 @@ export default function OverviewPage() {
               </div>
               <div className="flex flex-row gap-2 lg:flex-col">
                 <Button asChild size="sm" variant="primary">
+                  <a href="/prototype">
+                    View prototype run
+                    <ArrowRight />
+                  </a>
+                </Button>
+                <Button asChild size="sm" variant="outline">
                   <a href="/capabilities">
                     See capabilities
                     <ArrowRight />

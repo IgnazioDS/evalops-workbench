@@ -8,7 +8,7 @@
 
 ## Status: prototype-state
 
-**This repository now ships a real local MVP harness.** The Python package can load an evaluation dataset, run a named variant, score each case with a typed rubric, persist the run in DuckDB, emit per-case JSONL artifacts, and compare historical runs for regressions. The public dashboard still acts as the showcase shell, but the local evaluation contract is no longer hypothetical.
+**This repository now ships a real local prototype harness.** The Python package can load an evaluation dataset, run a named variant, score each case with a typed rubric, persist the run in DuckDB, emit per-case JSONL artifacts, inspect historical runs, export comparison reports, and enforce a regression gate. The public dashboard now includes a dedicated prototype route that demonstrates that eval loop end to end.
 
 For an example of what one of these projects looks like once graduated to production, see [NexusRAG](https://github.com/IgnazioDS/NexusRAG) — same operator, same engineering bar, fully shipped.
 
@@ -56,6 +56,9 @@ The local slice that ships in this repo today:
 - Persist run summaries and case-level results in DuckDB
 - Emit JSONL artifacts for every run under `.evalops/runs/`
 - Compare two runs and surface regressions vs improvements
+- Inspect a run case-by-case with score traces and missing-keyword notes
+- Export markdown or JSON reports for review threads and CI artifacts
+- Enforce zero-regression gates with explicit threshold flags
 
 **Current product stack**: Python · Argparse CLI · DuckDB ledger · JSONL artifacts · Next.js dashboard.
 
@@ -67,11 +70,12 @@ This is what is in the repo today, audited honestly.
 
 ### 1. Showcase dashboard (`/`)
 
-Next.js 14 App Router app at the live URL above. Five routes:
+Next.js 14 App Router app at the live URL above. Six routes:
 
 | path | what it shows |
 |---|---|
 | `/` | Overview — pitch banner, live `/api/stats` Tier-B counters, system status, audience + stack |
+| `/prototype` | Real eval story — baseline vs candidate metrics, case deltas, gate verdict, CLI flow |
 | `/telemetry` | Polling telemetry consumer — full metric grid, raw JSON, 30s visibility-aware polling, contract docs |
 | `/capabilities` | MVP scope, problem statement, why-now, audience, stack — read from `project.json` |
 | `/roadmap` | Three-phase timeline (showcase → MVP build → Tier-A graduation) |
@@ -91,10 +95,12 @@ evalops-workbench capabilities
 evalops-workbench roadmap
 evalops-workbench run --dataset examples/support_qa.json --variant prompt_v2
 evalops-workbench compare --base run_001 --candidate run_002
+evalops-workbench show --run run_002
+evalops-workbench gate --base run_001 --candidate run_002
 evalops-workbench runs
 ```
 
-The harness reads typed dataset rows, resolves a variant spec, evaluates each case, writes case-level JSONL output, and persists the run ledger to DuckDB. `project.json` remains the shared metadata registry for both the dashboard and the CLI.
+The harness reads typed dataset rows, resolves a variant spec, evaluates each case, writes case-level JSONL output, persists the run ledger to DuckDB, and can save markdown or JSON reports for a comparison or gate run. `project.json` remains the shared metadata registry for both the dashboard and the CLI.
 
 ### 4. Example evaluation pack (`examples/`)
 
@@ -107,9 +113,9 @@ The repo now includes a concrete starter pack for local evaluation:
 
 This gives evaluators a real clone-to-run path instead of a conceptual roadmap.
 
-### 5. Deploy + telemetry pipeline
+### 5. Quality + telemetry pipeline
 
-Vercel deploy with `/api/stats` warming a 5-minute cache, GitHub Actions for the type-check + vitest gate, build-time `_telemetry_static.json` artifact computed by `scripts/compute_telemetry_static.py`.
+Vercel deploy with `/api/stats` warming a 5-minute cache, GitHub Actions for Python harness tests plus Next.js type-check and vitest, and build-time `_telemetry_static.json` artifact computed by `scripts/compute_telemetry_static.py`.
 
 ---
 
@@ -128,7 +134,7 @@ Vercel deploy with `/api/stats` warming a 5-minute cache, GitHub Actions for the
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-The current dashboard is the public-facing shell. The Python CLI now includes the first real harness slice: dataset loading, rubric scoring, run storage, and regression comparison. The next graduation step is turning that local loop into a stricter deploy gate with richer scorers and traces.
+The current dashboard is the public-facing shell. The Python CLI now includes a real harness slice: dataset loading, rubric scoring, run storage, historical inspection, report export, and regression gating. The next graduation step is richer scorer types and live integrations, not basic eval mechanics.
 
 ---
 
@@ -153,6 +159,8 @@ python -m pip install -e .
 evalops-workbench summary
 evalops-workbench run --dataset examples/support_qa.json --variant prompt_v2
 evalops-workbench compare --base run_001 --candidate run_002
+evalops-workbench show --run run_002
+evalops-workbench gate --base run_001 --candidate run_002
 evalops-workbench runs
 ```
 
@@ -161,6 +169,7 @@ If you prefer `uv`, the same flow works with:
 ```bash
 uv run evalops-workbench run --dataset examples/support_qa.json --variant prompt_v2
 uv run evalops-workbench compare --base run_001 --candidate run_002
+uv run evalops-workbench gate --base run_001 --candidate run_002
 ```
 
 ### Test + type-check
@@ -169,7 +178,7 @@ uv run evalops-workbench compare --base run_001 --candidate run_002
 npm run lint
 npm run type-check
 npm test                    # vitest suite
-python -m pytest tests/     # python tests
+python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ---
@@ -183,7 +192,7 @@ Next.js 14 App Router · TypeScript strict · Tailwind 3 · Geist Sans + Mono ·
 | keys | action |
 |---|---|
 | ⌘K / Ctrl+K | Command palette |
-| G then O / T / C / R | Overview / Telemetry / Capabilities / Roadmap |
+| G then O / P / T / C / R | Overview / Prototype / Telemetry / Capabilities / Roadmap |
 
 ---
 
@@ -192,8 +201,7 @@ Next.js 14 App Router · TypeScript strict · Tailwind 3 · Geist Sans + Mono ·
 - **Operator's hub**: [eleventh.dev](https://eleventh.dev) — the public site this dashboard's telemetry feeds into
 - **Reference shipped project**: [NexusRAG](https://github.com/IgnazioDS/NexusRAG) — production-grade multi-tenant RAG agent platform, same operator
 - **Telemetry contract**: [TELEMETRY_SCHEMA.md](https://github.com/IgnazioDS/IgnazioDS/blob/main/TELEMETRY_SCHEMA.md) — what the Tier-B counters mean and what they don't
-- **Status of this project**: showcase-tier. The harness graduates when the regression-tracking ledger and the deploy gate ship.
-- **Status of this project**: prototype-tier. The local harness ships today; the next step is stronger scoring, richer traces, and CI-grade regression gates.
+- **Status of this project**: prototype-tier. The local harness and regression gate ship today; the next step is richer scorer types, more datasets, and stronger live integrations.
 
 ---
 

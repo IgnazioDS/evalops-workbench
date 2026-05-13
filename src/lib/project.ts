@@ -40,6 +40,8 @@ export const PROJECT: ProjectSpec = {
     "Run prompt or agent variants",
     "Score outputs with rubric functions",
     "Compare runs and export regressions",
+    "Inspect runs case-by-case and persist shareable reports",
+    "Gate releases on regression thresholds",
   ],
   github_url: "https://github.com/IgnazioDS/evalops-workbench",
   system_slug: "evalops",

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import csv
 import json
 import uuid
-import csv
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -77,8 +77,26 @@ class RunComparison:
     base_pass_rate: float
     candidate_pass_rate: float
     pass_rate_delta: float
+    baseline_failed_cases: int
+    candidate_failed_cases: int
     regressions: list[dict[str, Any]]
     improvements: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class RunDetails:
+    summary: RunSummary
+    results: list[CaseResult]
+
+
+@dataclass(frozen=True)
+class GateResult:
+    comparison: RunComparison
+    passed: bool
+    reasons: list[str]
+    max_regressions: int
+    max_score_drop: float
+    max_pass_rate_drop: float
 
 
 def load_dataset(dataset_path: str | Path) -> list[EvalCase]:
@@ -138,7 +156,7 @@ def resolve_variant(variant: str | Path, repo_root: str | Path) -> VariantSpec:
                 mode=str(data.get("mode", "grounded")),
                 system_prompt=str(data.get("system_prompt", "")),
                 answer_overrides={
-                    str(k): str(v) for k, v in dict(data.get("answer_overrides", {})).items()
+                    str(key): str(value) for key, value in dict(data.get("answer_overrides", {})).items()
                 },
                 fallback_suffix=str(data.get("fallback_suffix", "")),
             )
@@ -181,102 +199,130 @@ def run_evaluation(
     return summary
 
 
-def compare_runs(
-    base_run: str,
-    candidate_run: str,
-    workspace: str | Path,
-) -> RunComparison:
-    db_path = Path(workspace) / "evalops.duckdb"
-    _ensure_schema(db_path)
-    with duckdb.connect(str(db_path)) as conn:
-        base_summary = _fetch_run_summary(conn, base_run)
-        candidate_summary = _fetch_run_summary(conn, candidate_run)
-        base_results = _fetch_results(conn, base_run)
-        candidate_results = _fetch_results(conn, candidate_run)
+def compare_runs(base_run: str, candidate_run: str, workspace: str | Path) -> RunComparison:
+    base_details = get_run_details(base_run, workspace)
+    candidate_details = get_run_details(candidate_run, workspace)
 
-    candidate_by_case = {item["case_id"]: item for item in candidate_results}
+    candidate_by_case = {item.case_id: item for item in candidate_details.results}
     regressions: list[dict[str, Any]] = []
     improvements: list[dict[str, Any]] = []
 
-    for base in base_results:
-        case_id = str(base["case_id"])
-        candidate = candidate_by_case.get(case_id)
+    for base in base_details.results:
+        candidate = candidate_by_case.get(base.case_id)
         if candidate is None:
             regressions.append(
                 {
-                    "case_id": case_id,
+                    "case_id": base.case_id,
                     "kind": "missing_case",
-                    "base_score": base["score"],
+                    "base_score": base.score,
                     "candidate_score": None,
+                    "score_delta": None,
+                    "base_missing_keywords": base.missing_keywords,
+                    "candidate_missing_keywords": [],
                     "summary": "Candidate run does not contain this evaluation case.",
                 }
             )
             continue
 
-        score_delta = round(float(candidate["score"]) - float(base["score"]), 3)
-        base_passed = bool(base["passed"])
-        candidate_passed = bool(candidate["passed"])
+        score_delta = round(candidate.score - base.score, 3)
 
-        if base_passed and not candidate_passed:
+        if base.passed and not candidate.passed:
             regressions.append(
-                {
-                    "case_id": case_id,
-                    "kind": "pass_to_fail",
-                    "base_score": base["score"],
-                    "candidate_score": candidate["score"],
-                    "score_delta": score_delta,
-                    "summary": f"Case {case_id} regressed from pass to fail.",
-                }
+                _delta_record(
+                    case_id=base.case_id,
+                    kind="pass_to_fail",
+                    base=base,
+                    candidate=candidate,
+                    score_delta=score_delta,
+                    summary=f"Case {base.case_id} regressed from pass to fail.",
+                )
             )
         elif score_delta < 0:
             regressions.append(
-                {
-                    "case_id": case_id,
-                    "kind": "score_drop",
-                    "base_score": base["score"],
-                    "candidate_score": candidate["score"],
-                    "score_delta": score_delta,
-                    "summary": f"Case {case_id} lost quality relative to baseline.",
-                }
+                _delta_record(
+                    case_id=base.case_id,
+                    kind="score_drop",
+                    base=base,
+                    candidate=candidate,
+                    score_delta=score_delta,
+                    summary=f"Case {base.case_id} lost quality relative to baseline.",
+                )
             )
-        elif not base_passed and candidate_passed:
+        elif not base.passed and candidate.passed:
             improvements.append(
-                {
-                    "case_id": case_id,
-                    "kind": "fail_to_pass",
-                    "base_score": base["score"],
-                    "candidate_score": candidate["score"],
-                    "score_delta": score_delta,
-                    "summary": f"Case {case_id} improved from fail to pass.",
-                }
+                _delta_record(
+                    case_id=base.case_id,
+                    kind="fail_to_pass",
+                    base=base,
+                    candidate=candidate,
+                    score_delta=score_delta,
+                    summary=f"Case {base.case_id} improved from fail to pass.",
+                )
             )
         elif score_delta > 0:
             improvements.append(
-                {
-                    "case_id": case_id,
-                    "kind": "score_gain",
-                    "base_score": base["score"],
-                    "candidate_score": candidate["score"],
-                    "score_delta": score_delta,
-                    "summary": f"Case {case_id} improved relative to baseline.",
-                }
+                _delta_record(
+                    case_id=base.case_id,
+                    kind="score_gain",
+                    base=base,
+                    candidate=candidate,
+                    score_delta=score_delta,
+                    summary=f"Case {base.case_id} improved relative to baseline.",
+                )
             )
 
     return RunComparison(
         base_run=base_run,
         candidate_run=candidate_run,
-        base_avg_score=float(base_summary["avg_score"]),
-        candidate_avg_score=float(candidate_summary["avg_score"]),
-        avg_score_delta=round(
-            float(candidate_summary["avg_score"]) - float(base_summary["avg_score"]), 3
-        ),
-        base_pass_rate=float(base_summary["pass_rate"]),
-        candidate_pass_rate=float(candidate_summary["pass_rate"]),
-        pass_rate_delta=round(
-            float(candidate_summary["pass_rate"]) - float(base_summary["pass_rate"]), 3
-        ),
+        base_avg_score=base_details.summary.avg_score,
+        candidate_avg_score=candidate_details.summary.avg_score,
+        avg_score_delta=round(candidate_details.summary.avg_score - base_details.summary.avg_score, 3),
+        base_pass_rate=base_details.summary.pass_rate,
+        candidate_pass_rate=candidate_details.summary.pass_rate,
+        pass_rate_delta=round(candidate_details.summary.pass_rate - base_details.summary.pass_rate, 3),
+        baseline_failed_cases=base_details.summary.failed_cases,
+        candidate_failed_cases=candidate_details.summary.failed_cases,
         regressions=regressions,
         improvements=improvements,
+    )
+
+
+def get_run_details(run_id: str, workspace: str | Path) -> RunDetails:
+    db_path = Path(workspace) / "evalops.duckdb"
+    _ensure_schema(db_path)
+    with duckdb.connect(str(db_path)) as conn:
+        summary = _fetch_run_summary(conn, run_id)
+        results = _fetch_results(conn, run_id)
+    return RunDetails(summary=summary, results=results)
+
+
+def assess_gate(
+    comparison: RunComparison,
+    *,
+    max_regressions: int = 0,
+    max_score_drop: float = 0.0,
+    max_pass_rate_drop: float = 0.0,
+) -> GateResult:
+    reasons: list[str] = []
+    score_drop = max(0.0, round(-comparison.avg_score_delta, 3))
+    pass_rate_drop = max(0.0, round(-comparison.pass_rate_delta, 3))
+
+    if len(comparison.regressions) > max_regressions:
+        reasons.append(
+            f"regressions {len(comparison.regressions)} exceeded limit {max_regressions}"
+        )
+    if score_drop > max_score_drop:
+        reasons.append(f"average score drop {score_drop:.3f} exceeded limit {max_score_drop:.3f}")
+    if pass_rate_drop > max_pass_rate_drop:
+        reasons.append(f"pass-rate drop {pass_rate_drop:.3f} exceeded limit {max_pass_rate_drop:.3f}")
+
+    return GateResult(
+        comparison=comparison,
+        passed=not reasons,
+        reasons=reasons,
+        max_regressions=max_regressions,
+        max_score_drop=max_score_drop,
+        max_pass_rate_drop=max_pass_rate_drop,
     )
 
 
@@ -314,33 +360,22 @@ def evaluate_case(case: EvalCase, variant: VariantSpec) -> CaseResult:
     output = render_variant_output(case, variant)
     output_lower = output.lower()
 
-    matched_keywords = [
-        keyword
-        for keyword in case.rubric.required_keywords
-        if keyword.lower() in output_lower
-    ]
+    matched_keywords = [keyword for keyword in case.rubric.required_keywords if keyword.lower() in output_lower]
     missing_keywords = [
-        keyword
-        for keyword in case.rubric.required_keywords
-        if keyword.lower() not in output_lower
+        keyword for keyword in case.rubric.required_keywords if keyword.lower() not in output_lower
     ]
     forbidden_keywords_hit = [
-        keyword
-        for keyword in case.rubric.forbidden_keywords
-        if keyword.lower() in output_lower
+        keyword for keyword in case.rubric.forbidden_keywords if keyword.lower() in output_lower
     ]
 
-    if case.rubric.required_keywords:
-        base_score = len(matched_keywords) / len(case.rubric.required_keywords)
-    else:
-        base_score = 1.0
+    base_score = len(matched_keywords) / len(case.rubric.required_keywords) if case.rubric.required_keywords else 1.0
     penalty = 0.25 * len(forbidden_keywords_hit)
     score = max(0.0, min(1.0, round(base_score - penalty, 3)))
     passed = score >= case.rubric.pass_threshold
 
-    notes_parts = [
-        f"matched {len(matched_keywords)}/{len(case.rubric.required_keywords)} required keywords"
-    ]
+    notes_parts = [f"matched {len(matched_keywords)}/{len(case.rubric.required_keywords)} required keywords"]
+    if missing_keywords:
+        notes_parts.append(f"missing keywords: {', '.join(missing_keywords)}")
     if forbidden_keywords_hit:
         notes_parts.append(f"hit forbidden keywords: {', '.join(forbidden_keywords_hit)}")
 
@@ -408,10 +443,7 @@ def format_run_summary(summary: RunSummary) -> str:
             f"Variant: {summary.variant}",
             f"Dataset: {summary.dataset_path}",
             f"Created: {summary.created_at}",
-            (
-                f"Cases: {summary.total_cases} | Passed: {summary.passed_cases} | "
-                f"Failed: {summary.failed_cases}"
-            ),
+            f"Cases: {summary.total_cases} | Passed: {summary.passed_cases} | Failed: {summary.failed_cases}",
             f"Average score: {summary.avg_score:.3f}",
             f"Pass rate: {summary.pass_rate:.3f}",
             f"Artifacts: {summary.results_path}",
@@ -420,29 +452,74 @@ def format_run_summary(summary: RunSummary) -> str:
     )
 
 
-def format_comparison(comparison: RunComparison) -> str:
+def format_run_details(details: RunDetails, *, limit: int = 10) -> str:
+    lines = [
+        format_run_summary(details.summary),
+        "",
+        "Case traces:",
+    ]
+    ordered_results = sorted(details.results, key=lambda item: (item.passed, item.score, item.case_id))
+    for result in ordered_results[:limit]:
+        lines.extend(
+            [
+                f"- {result.case_id} | score={result.score:.3f} | {'PASS' if result.passed else 'FAIL'}",
+                f"  Expected: {result.expected}",
+                f"  Output: {result.output}",
+                f"  Notes: {result.notes}",
+            ]
+        )
+    remaining = len(ordered_results) - min(len(ordered_results), limit)
+    if remaining > 0:
+        lines.append(f"... {remaining} more cases not shown")
+    return "\n".join(lines)
+
+
+def format_comparison(comparison: RunComparison, *, limit: int = 10) -> str:
     lines = [
         f"Compare {comparison.base_run} -> {comparison.candidate_run}",
-        (
-            f"Average score: {comparison.base_avg_score:.3f} -> "
-            f"{comparison.candidate_avg_score:.3f} ({comparison.avg_score_delta:+.3f})"
-        ),
-        (
-            f"Pass rate: {comparison.base_pass_rate:.3f} -> "
-            f"{comparison.candidate_pass_rate:.3f} ({comparison.pass_rate_delta:+.3f})"
-        ),
+        f"Average score: {comparison.base_avg_score:.3f} -> {comparison.candidate_avg_score:.3f} ({comparison.avg_score_delta:+.3f})",
+        f"Pass rate: {comparison.base_pass_rate:.3f} -> {comparison.candidate_pass_rate:.3f} ({comparison.pass_rate_delta:+.3f})",
+        f"Failed cases: {comparison.baseline_failed_cases} -> {comparison.candidate_failed_cases}",
         "",
         f"Regressions: {len(comparison.regressions)}",
     ]
-    lines.extend(
-        f"- {item['case_id']} [{item['kind']}]: {item['summary']}"
-        for item in comparison.regressions[:10]
-    )
+    lines.extend(_format_delta_lines(comparison.regressions[:limit]))
     lines.extend(["", f"Improvements: {len(comparison.improvements)}"])
-    lines.extend(
-        f"- {item['case_id']} [{item['kind']}]: {item['summary']}"
-        for item in comparison.improvements[:10]
-    )
+    lines.extend(_format_delta_lines(comparison.improvements[:limit]))
+    return "\n".join(lines)
+
+
+def format_comparison_markdown(comparison: RunComparison, *, limit: int = 10) -> str:
+    sections = [
+        "# EvalOps Comparison Report",
+        "",
+        f"- Base run: `{comparison.base_run}`",
+        f"- Candidate run: `{comparison.candidate_run}`",
+        f"- Average score delta: `{comparison.avg_score_delta:+.3f}`",
+        f"- Pass-rate delta: `{comparison.pass_rate_delta:+.3f}`",
+        f"- Regressions: `{len(comparison.regressions)}`",
+        f"- Improvements: `{len(comparison.improvements)}`",
+        "",
+        "## Regressions",
+        "",
+    ]
+    sections.extend(_format_delta_markdown(comparison.regressions[:limit]) or ["No regressions."])
+    sections.extend(["", "## Improvements", ""])
+    sections.extend(_format_delta_markdown(comparison.improvements[:limit]) or ["No improvements."])
+    return "\n".join(sections)
+
+
+def format_gate_result(gate: GateResult, *, limit: int = 10) -> str:
+    header = "Gate PASS" if gate.passed else "Gate FAIL"
+    lines = [
+        header,
+        f"Policy: regressions<={gate.max_regressions}, score_drop<={gate.max_score_drop:.3f}, pass_rate_drop<={gate.max_pass_rate_drop:.3f}",
+        "",
+        format_comparison(gate.comparison, limit=limit),
+    ]
+    if gate.reasons:
+        lines.extend(["", "Reasons:"])
+        lines.extend(f"- {reason}" for reason in gate.reasons)
     return "\n".join(lines)
 
 
@@ -450,10 +527,7 @@ def format_runs_table(runs: list[RunSummary]) -> str:
     lines = ["Recent runs", ""]
     for run in runs:
         lines.append(
-            (
-                f"{run.run_id} | {run.variant} | avg={run.avg_score:.3f} | "
-                f"pass={run.pass_rate:.3f} | {run.created_at}"
-            )
+            f"{run.run_id} | {run.variant} | avg={run.avg_score:.3f} | pass={run.pass_rate:.3f} | {run.created_at}"
         )
     return "\n".join(lines)
 
@@ -474,6 +548,28 @@ def run_summary_to_dict(summary: RunSummary) -> dict[str, Any]:
     }
 
 
+def run_details_to_dict(details: RunDetails) -> dict[str, Any]:
+    return {
+        "summary": run_summary_to_dict(details.summary),
+        "results": [case_result_to_dict(result) for result in details.results],
+    }
+
+
+def case_result_to_dict(result: CaseResult) -> dict[str, Any]:
+    return {
+        "case_id": result.case_id,
+        "prompt": result.prompt,
+        "expected": result.expected,
+        "output": result.output,
+        "score": result.score,
+        "passed": result.passed,
+        "matched_keywords": result.matched_keywords,
+        "missing_keywords": result.missing_keywords,
+        "forbidden_keywords_hit": result.forbidden_keywords_hit,
+        "notes": result.notes,
+    }
+
+
 def comparison_to_dict(comparison: RunComparison) -> dict[str, Any]:
     return {
         "base_run": comparison.base_run,
@@ -484,8 +580,21 @@ def comparison_to_dict(comparison: RunComparison) -> dict[str, Any]:
         "base_pass_rate": comparison.base_pass_rate,
         "candidate_pass_rate": comparison.candidate_pass_rate,
         "pass_rate_delta": comparison.pass_rate_delta,
+        "baseline_failed_cases": comparison.baseline_failed_cases,
+        "candidate_failed_cases": comparison.candidate_failed_cases,
         "regressions": comparison.regressions,
         "improvements": comparison.improvements,
+    }
+
+
+def gate_result_to_dict(gate: GateResult) -> dict[str, Any]:
+    return {
+        "passed": gate.passed,
+        "reasons": gate.reasons,
+        "max_regressions": gate.max_regressions,
+        "max_score_drop": gate.max_score_drop,
+        "max_pass_rate_drop": gate.max_pass_rate_drop,
+        "comparison": comparison_to_dict(gate.comparison),
     }
 
 
@@ -493,26 +602,72 @@ def runs_to_dict(runs: list[RunSummary]) -> list[dict[str, Any]]:
     return [run_summary_to_dict(run) for run in runs]
 
 
+def _delta_record(
+    *,
+    case_id: str,
+    kind: str,
+    base: CaseResult,
+    candidate: CaseResult,
+    score_delta: float,
+    summary: str,
+) -> dict[str, Any]:
+    return {
+        "case_id": case_id,
+        "kind": kind,
+        "base_score": base.score,
+        "candidate_score": candidate.score,
+        "score_delta": score_delta,
+        "base_missing_keywords": base.missing_keywords,
+        "candidate_missing_keywords": candidate.missing_keywords,
+        "candidate_forbidden_keywords": candidate.forbidden_keywords_hit,
+        "summary": summary,
+    }
+
+
+def _format_delta_lines(items: list[dict[str, Any]]) -> list[str]:
+    if not items:
+        return ["- none"]
+
+    lines: list[str] = []
+    for item in items:
+        delta = item["score_delta"]
+        delta_text = "n/a" if delta is None else f"{float(delta):+.3f}"
+        lines.append(f"- {item['case_id']} [{item['kind']}] score={delta_text}: {item['summary']}")
+        missing = item.get("candidate_missing_keywords") or []
+        forbidden = item.get("candidate_forbidden_keywords") or []
+        if missing:
+            lines.append(f"  missing keywords: {', '.join(missing)}")
+        if forbidden:
+            lines.append(f"  forbidden hits: {', '.join(forbidden)}")
+    return lines
+
+
+def _format_delta_markdown(items: list[dict[str, Any]]) -> list[str]:
+    if not items:
+        return []
+
+    rows = [
+        "| case_id | kind | score delta | notes |",
+        "| --- | --- | ---: | --- |",
+    ]
+    for item in items:
+        notes: list[str] = [item["summary"]]
+        missing = item.get("candidate_missing_keywords") or []
+        forbidden = item.get("candidate_forbidden_keywords") or []
+        if missing:
+            notes.append(f"missing: {', '.join(missing)}")
+        if forbidden:
+            notes.append(f"forbidden: {', '.join(forbidden)}")
+        delta = item["score_delta"]
+        delta_text = "n/a" if delta is None else f"{float(delta):+.3f}"
+        rows.append(f"| `{item['case_id']}` | `{item['kind']}` | `{delta_text}` | {'; '.join(notes)} |")
+    return rows
+
+
 def _write_results_jsonl(path: Path, results: list[CaseResult]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for result in results:
-            handle.write(
-                json.dumps(
-                    {
-                        "case_id": result.case_id,
-                        "prompt": result.prompt,
-                        "expected": result.expected,
-                        "output": result.output,
-                        "score": result.score,
-                        "passed": result.passed,
-                        "matched_keywords": result.matched_keywords,
-                        "missing_keywords": result.missing_keywords,
-                        "forbidden_keywords_hit": result.forbidden_keywords_hit,
-                        "notes": result.notes,
-                    }
-                )
-                + "\n"
-            )
+            handle.write(json.dumps(case_result_to_dict(result)) + "\n")
 
 
 def _ensure_schema(db_path: Path) -> None:
@@ -598,7 +753,7 @@ def _store_run(db_path: Path, summary: RunSummary, results: list[CaseResult]) ->
         )
 
 
-def _fetch_run_summary(conn: duckdb.DuckDBPyConnection, run_id: str) -> dict[str, Any]:
+def _fetch_run_summary(conn: duckdb.DuckDBPyConnection, run_id: str) -> RunSummary:
     row = conn.execute(
         """
         SELECT run_id, variant, dataset_path, created_at, total_cases,
@@ -609,22 +764,22 @@ def _fetch_run_summary(conn: duckdb.DuckDBPyConnection, run_id: str) -> dict[str
     ).fetchone()
     if row is None:
         raise ValueError(f"Unknown run_id: {run_id}")
-    return {
-        "run_id": row[0],
-        "variant": row[1],
-        "dataset_path": row[2],
-        "created_at": row[3],
-        "total_cases": row[4],
-        "passed_cases": row[5],
-        "failed_cases": row[6],
-        "avg_score": row[7],
-        "pass_rate": row[8],
-        "workspace": row[9],
-        "results_path": row[10],
-    }
+    return RunSummary(
+        run_id=row[0],
+        variant=row[1],
+        dataset_path=row[2],
+        created_at=row[3],
+        total_cases=row[4],
+        passed_cases=row[5],
+        failed_cases=row[6],
+        avg_score=float(row[7]),
+        pass_rate=float(row[8]),
+        workspace=row[9],
+        results_path=row[10],
+    )
 
 
-def _fetch_results(conn: duckdb.DuckDBPyConnection, run_id: str) -> list[dict[str, Any]]:
+def _fetch_results(conn: duckdb.DuckDBPyConnection, run_id: str) -> list[CaseResult]:
     rows = conn.execute(
         """
         SELECT case_id, prompt, expected, output, score, passed,
@@ -635,18 +790,18 @@ def _fetch_results(conn: duckdb.DuckDBPyConnection, run_id: str) -> list[dict[st
         [run_id],
     ).fetchall()
     return [
-        {
-            "case_id": row[0],
-            "prompt": row[1],
-            "expected": row[2],
-            "output": row[3],
-            "score": float(row[4]),
-            "passed": bool(row[5]),
-            "matched_keywords": json.loads(row[6]),
-            "missing_keywords": json.loads(row[7]),
-            "forbidden_keywords_hit": json.loads(row[8]),
-            "notes": row[9],
-        }
+        CaseResult(
+            case_id=row[0],
+            prompt=row[1],
+            expected=row[2],
+            output=row[3],
+            score=float(row[4]),
+            passed=bool(row[5]),
+            matched_keywords=json.loads(row[6]),
+            missing_keywords=json.loads(row[7]),
+            forbidden_keywords_hit=json.loads(row[8]),
+            notes=row[9],
+        )
         for row in rows
     ]
 

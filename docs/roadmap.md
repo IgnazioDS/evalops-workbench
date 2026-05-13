@@ -6,11 +6,12 @@
 - Load JSON datasets with typed rubric contracts
 - Run named prompt variants and persist case-level artifacts
 - Compare historical runs and surface regressions
+- Add run inspection, saved reports, and gate semantics
 
 ## Phase 2
 
-- Add CSV ingestion and richer scorer types.
-- Introduce structured traces and CI-grade exit codes.
+- Add richer scorer types and dataset contracts.
+- Introduce structured traces beyond keyword audits.
 - Expose a service layer beyond the local CLI.
 
 ## Phase 3

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from evalops_workbench.workbench import compare_runs, load_dataset, run_evaluation
+from evalops_workbench.workbench import assess_gate, compare_runs, get_run_details, load_dataset, run_evaluation
 
 
 class WorkbenchTests(unittest.TestCase):
@@ -67,6 +67,40 @@ class WorkbenchTests(unittest.TestCase):
             self.assertLess(comparison.candidate_avg_score, comparison.base_avg_score)
             self.assertGreater(len(comparison.regressions), 0)
             self.assertEqual(comparison.improvements, [])
+
+    def test_get_run_details_returns_case_results(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            summary = run_evaluation(
+                dataset_path=self.dataset,
+                variant="prompt_v1",
+                workspace=tmpdir,
+                repo_root=self.repo_root,
+            )
+            details = get_run_details(summary.run_id, tmpdir)
+
+            self.assertEqual(details.summary.run_id, summary.run_id)
+            self.assertEqual(len(details.results), 4)
+            self.assertTrue(any(not result.passed for result in details.results))
+
+    def test_assess_gate_fails_on_regressions(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            base = run_evaluation(
+                dataset_path=self.dataset,
+                variant="prompt_v2",
+                workspace=tmpdir,
+                repo_root=self.repo_root,
+            )
+            candidate = run_evaluation(
+                dataset_path=self.dataset,
+                variant="prompt_v1",
+                workspace=tmpdir,
+                repo_root=self.repo_root,
+            )
+            comparison = compare_runs(base.run_id, candidate.run_id, tmpdir)
+            gate = assess_gate(comparison)
+
+            self.assertFalse(gate.passed)
+            self.assertGreater(len(gate.reasons), 0)
 
 
 if __name__ == "__main__":

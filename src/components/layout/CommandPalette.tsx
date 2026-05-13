@@ -98,6 +98,11 @@ export function CommandPaletteProvider({
                     Telemetry
                     <kbd className="kbd ml-auto">G T</kbd>
                   </Command.Item>
+                  <Command.Item onSelect={() => navigate("/prototype")}>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Prototype run
+                    <kbd className="kbd ml-auto">G P</kbd>
+                  </Command.Item>
                   <Command.Item onSelect={() => navigate("/capabilities")}>
                     <ListChecks className="h-3.5 w-3.5" />
                     Capabilities
@@ -193,6 +198,7 @@ export function useGoToShortcuts() {
       }
       const dest: Record<string, string> = {
         o: "/",
+        p: "/prototype",
         t: "/telemetry",
         c: "/capabilities",
         r: "/roadmap",

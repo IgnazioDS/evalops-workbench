@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from evalops_workbench.cli import run
+from evalops_workbench.cli import execute, run
 
 
 class CliTests(unittest.TestCase):
@@ -108,6 +108,134 @@ class CliTests(unittest.TestCase):
             )
         self.assertIn("Regressions:", output)
         self.assertIn("pass_to_fail", output)
+
+    def test_show_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            first = json.loads(
+                run(
+                    [
+                        "run",
+                        "--dataset",
+                        self.dataset,
+                        "--variant",
+                        "prompt_v1",
+                        "--workspace",
+                        tmpdir,
+                        "--format",
+                        "json",
+                    ]
+                )
+            )
+            output = run(
+                [
+                    "show",
+                    "--run",
+                    first["run_id"],
+                    "--workspace",
+                    tmpdir,
+                    "--limit",
+                    "2",
+                ]
+            )
+        self.assertIn("Case traces:", output)
+        self.assertIn("FAIL", output)
+
+    def test_gate_command_returns_nonzero(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            first = json.loads(
+                run(
+                    [
+                        "run",
+                        "--dataset",
+                        self.dataset,
+                        "--variant",
+                        "prompt_v2",
+                        "--workspace",
+                        tmpdir,
+                        "--format",
+                        "json",
+                    ]
+                )
+            )
+            second = json.loads(
+                run(
+                    [
+                        "run",
+                        "--dataset",
+                        self.dataset,
+                        "--variant",
+                        "prompt_v1",
+                        "--workspace",
+                        tmpdir,
+                        "--format",
+                        "json",
+                    ]
+                )
+            )
+            output, exit_code = execute(
+                [
+                    "gate",
+                    "--base",
+                    first["run_id"],
+                    "--candidate",
+                    second["run_id"],
+                    "--workspace",
+                    tmpdir,
+                ]
+            )
+        self.assertEqual(exit_code, 2)
+        self.assertIn("Gate FAIL", output)
+
+    def test_compare_markdown_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = Path(tmpdir) / "reports" / "comparison.md"
+            first = json.loads(
+                run(
+                    [
+                        "run",
+                        "--dataset",
+                        self.dataset,
+                        "--variant",
+                        "prompt_v2",
+                        "--workspace",
+                        tmpdir,
+                        "--format",
+                        "json",
+                    ]
+                )
+            )
+            second = json.loads(
+                run(
+                    [
+                        "run",
+                        "--dataset",
+                        self.dataset,
+                        "--variant",
+                        "prompt_v1",
+                        "--workspace",
+                        tmpdir,
+                        "--format",
+                        "json",
+                    ]
+                )
+            )
+            output = run(
+                [
+                    "compare",
+                    "--base",
+                    first["run_id"],
+                    "--candidate",
+                    second["run_id"],
+                    "--workspace",
+                    tmpdir,
+                    "--format",
+                    "markdown",
+                    "--report",
+                    str(report_path),
+                ]
+            )
+            self.assertTrue(report_path.exists())
+        self.assertIn("# EvalOps Comparison Report", output)
 
 
 if __name__ == "__main__":

@@ -15,8 +15,8 @@ EvalOps Workbench now has a real local harness boundary: dataset ingestion, dete
 
 - `models.py` defines the typed project metadata.
 - `catalog.py` loads the shipped product spec.
-- `cli.py` exposes summary, run, compare, runs, and roadmap commands.
-- `workbench.py` implements dataset loading, variant resolution, scoring, JSONL artifacts, and DuckDB persistence.
+- `cli.py` exposes summary, run, compare, show, gate, runs, and roadmap commands.
+- `workbench.py` implements dataset loading, variant resolution, scoring, JSONL artifacts, DuckDB persistence, run inspection, and gate decisions.
 
 ## Runtime Flow
 
@@ -26,10 +26,12 @@ EvalOps Workbench now has a real local harness boundary: dataset ingestion, dete
 4. Case-level artifacts are written to `.evalops/runs/<run_id>.jsonl`.
 5. Run summaries and result rows are persisted to `.evalops/evalops.duckdb`.
 6. `evalops-workbench compare` reads two historical runs and reports regressions vs improvements.
+7. `evalops-workbench show` inspects one run case-by-case.
+8. `evalops-workbench gate` turns the diff into an explicit pass/fail decision for CI.
 
 ## Next Graduation Steps
 
 - Add richer scorer types beyond keyword contracts.
-- Support CSV ingestion alongside JSON.
-- Add CI-oriented exit codes for deploy gating.
-- Emit structured traces so regressions are explainable, not just visible.
+- Add structured trace payloads beyond keyword matching.
+- Support richer dataset schemas and larger benchmark packs.
+- Add baseline pinning and named suites for multiple agent surfaces.
