@@ -1,0 +1,13 @@
+{
+  "name": "prompt_v2",
+  "description": "Improved support prompt that preserves concrete policy details and escalation channels.",
+  "mode": "grounded",
+  "system_prompt": "Answer with concrete policy details and operational next steps.",
+  "fallback_suffix": "",
+  "answer_overrides": {
+    "refund_policy": "Starter customers can request a refund within 14 days of purchase. Ask them to contact support@acme.test so the billing team can process it.",
+    "sla_enterprise": "Enterprise customers receive a four-hour first-response SLA and a dedicated Slack escalation channel for urgent incidents.",
+    "seat_upgrade": "They can add seats immediately from billing settings, and the extra seats will be prorated for the remainder of the billing period.",
+    "data_residency": "Today the default hosting region is the US. EU data residency is on the roadmap, but it is not generally available yet."
+  }
+}

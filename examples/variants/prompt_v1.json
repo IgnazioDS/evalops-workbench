@@ -1,0 +1,13 @@
+{
+  "name": "prompt_v1",
+  "description": "Baseline support-answer prompt that is directionally useful but misses some operational detail.",
+  "mode": "baseline",
+  "system_prompt": "Answer quickly and keep replies short.",
+  "fallback_suffix": "",
+  "answer_overrides": {
+    "refund_policy": "Customers can ask for a refund within 14 days.",
+    "sla_enterprise": "Enterprise customers have an SLA and can escalate issues through support.",
+    "seat_upgrade": "Admins can add seats before renewal.",
+    "data_residency": "Data is stored in the US today and EU support is planned."
+  }
+}

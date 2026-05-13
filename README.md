@@ -2,13 +2,13 @@
 
 > A local-first evaluation harness for prompts, tools, and agents. Regression tracking and experiment history. Evaluation as a contract the build is supposed to satisfy — not a dashboard you check after the fact.
 
-[**Live dashboard →**](https://evalops-workbench.eleventh.dev) · Stage: Researching · Track: LLM · Category: Developer Tool
+[**Live dashboard →**](https://evalops-workbench.eleventh.dev) · Stage: Prototype · Track: LLM · Category: Developer Tool
 
 ---
 
-## Status: showcase-state
+## Status: prototype-state
 
-**This repository is in showcase-state.** The MVP harness — dataset loading, run-comparison engine, regression-tracking dashboard, deploy gate — is not yet in this repo. What ships now is a public dashboard, a stdlib-only telemetry endpoint, and a Python CLI scaffold that exposes the project contract. See [What ships right now](#what-ships-right-now) for the audit.
+**This repository now ships a real local MVP harness.** The Python package can load an evaluation dataset, run a named variant, score each case with a typed rubric, persist the run in DuckDB, emit per-case JSONL artifacts, and compare historical runs for regressions. The public dashboard still acts as the showcase shell, but the local evaluation contract is no longer hypothetical.
 
 For an example of what one of these projects looks like once graduated to production, see [NexusRAG](https://github.com/IgnazioDS/NexusRAG) — same operator, same engineering bar, fully shipped.
 
@@ -46,17 +46,18 @@ EvalOps Workbench is the harness for teams that ship prompt changes the way good
 
 ---
 
-## Planned MVP
+## Working MVP
 
-The system the dashboard will graduate to:
+The local slice that ships in this repo today:
 
-- Load datasets from JSON or CSV
-- Run prompt or agent variants with deterministic seeding
-- Score outputs with rubric functions (typed, versioned)
-- Compare runs and export regressions
-- Block deploy on regression vs pinned baseline
+- Load JSON evaluation datasets with typed case IDs, expected outcomes, and rubric contracts
+- Resolve named prompt variants from `examples/variants/`
+- Score each case deterministically with required/forbidden keyword rubrics
+- Persist run summaries and case-level results in DuckDB
+- Emit JSONL artifacts for every run under `.evalops/runs/`
+- Compare two runs and surface regressions vs improvements
 
-**Planned product stack**: Python · Typer (CLI) · DuckDB (experiment ledger) · OpenTelemetry (run instrumentation).
+**Current product stack**: Python · Argparse CLI · DuckDB ledger · JSONL artifacts · Next.js dashboard.
 
 ---
 
@@ -80,52 +81,54 @@ Next.js 14 App Router app at the live URL above. Five routes:
 
 Stdlib-only Vercel Python serverless function. Reports honest GitHub-derived signals — commits, stars, last commit, primary language, lines of code. Never simulated workload metrics. Contract documented in [TELEMETRY_SCHEMA.md](https://github.com/IgnazioDS/IgnazioDS/blob/main/TELEMETRY_SCHEMA.md).
 
-### 3. Python CLI scaffold (`src/evalops_workbench/`)
+### 3. Python evaluation harness (`src/evalops_workbench/`)
 
-Argparse-based CLI exposing the project contract. Currently three subcommands:
+Argparse-based CLI with real run history and regression comparison:
 
+```bash
+evalops-workbench summary
+evalops-workbench capabilities
+evalops-workbench roadmap
+evalops-workbench run --dataset examples/support_qa.json --variant prompt_v2
+evalops-workbench compare --base run_001 --candidate run_002
+evalops-workbench runs
 ```
-evalops-workbench summary       # name, summary, problem, users, stage, track
-evalops-workbench capabilities  # planned MVP capabilities
-evalops-workbench roadmap       # docs/roadmap.md
-```
 
-The CLI reads `project.json` — a single typed registry that drives both the dashboard's `/capabilities` route and the CLI. When MVP work begins, the harness primitives layer onto this scaffold.
+The harness reads typed dataset rows, resolves a variant spec, evaluates each case, writes case-level JSONL output, and persists the run ledger to DuckDB. `project.json` remains the shared metadata registry for both the dashboard and the CLI.
 
-### 4. Deploy + telemetry pipeline
+### 4. Example evaluation pack (`examples/`)
+
+The repo now includes a concrete starter pack for local evaluation:
+
+- `examples/support_qa.json` — four support QA cases with expected outcomes and rubric thresholds
+- `examples/support_qa.csv` — the same dataset in flat-file form for teams that prefer spreadsheet-style editing
+- `examples/variants/prompt_v1.json` — baseline variant with missing operational detail
+- `examples/variants/prompt_v2.json` — improved variant that preserves concrete policy facts
+
+This gives evaluators a real clone-to-run path instead of a conceptual roadmap.
+
+### 5. Deploy + telemetry pipeline
 
 Vercel deploy with `/api/stats` warming a 5-minute cache, GitHub Actions for the type-check + vitest gate, build-time `_telemetry_static.json` artifact computed by `scripts/compute_telemetry_static.py`.
 
 ---
 
-## Architecture (graduation path)
+## Architecture
 
 ```
-┌──── current repo state (showcase-tier) ────────────────────────────┐
+┌──── current repo state (prototype-tier) ───────────────────────────┐
 │                                                                    │
 │  Next.js dashboard ──▶  /api/stats (stdlib Python)  ──▶  GitHub   │
 │  (5 routes)              cached 5 min                      API     │
 │       │                                                            │
 │       └─▶  reads ──▶  project.json  ◀── reads ── Python CLI       │
 │                       (typed registry)                             │
-└────────────────────────────────────────────────────────────────────┘
-
-                              │  graduates to
-                              ▼
-
-┌──── planned MVP (Tier-A) ──────────────────────────────────────────┐
-│                                                                    │
-│  Typer CLI ──▶  Eval engine  ──▶  Rubric scorers  ──▶  DuckDB     │
-│       │              │                                  ledger     │
-│       │              ▼                                             │
-│       │         OTEL spans  ────▶  Local trace viewer              │
-│       │                                                            │
-│       └──▶  Regression diff  ──▶  Deploy gate  ──▶  exit non-zero │
-│                                                                    │
+│                                  │                                 │
+│                                  └─▶ Eval engine ─▶ DuckDB + JSONL │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-The current dashboard is the public-facing shell. The Python CLI is the spine the MVP harness will extend. `project.json` stays as the single source of truth for what the system claims to be.
+The current dashboard is the public-facing shell. The Python CLI now includes the first real harness slice: dataset loading, rubric scoring, run storage, and regression comparison. The next graduation step is turning that local loop into a stricter deploy gate with richer scorers and traces.
 
 ---
 
@@ -140,13 +143,24 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-### Run the Python CLI scaffold
+### Run the Python evaluation harness
 
 ```bash
 cd evalops-workbench
-python -m evalops_workbench.cli summary
-python -m evalops_workbench.cli capabilities
-python -m evalops_workbench.cli roadmap
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+evalops-workbench summary
+evalops-workbench run --dataset examples/support_qa.json --variant prompt_v2
+evalops-workbench compare --base run_001 --candidate run_002
+evalops-workbench runs
+```
+
+If you prefer `uv`, the same flow works with:
+
+```bash
+uv run evalops-workbench run --dataset examples/support_qa.json --variant prompt_v2
+uv run evalops-workbench compare --base run_001 --candidate run_002
 ```
 
 ### Test + type-check
@@ -179,6 +193,7 @@ Next.js 14 App Router · TypeScript strict · Tailwind 3 · Geist Sans + Mono ·
 - **Reference shipped project**: [NexusRAG](https://github.com/IgnazioDS/NexusRAG) — production-grade multi-tenant RAG agent platform, same operator
 - **Telemetry contract**: [TELEMETRY_SCHEMA.md](https://github.com/IgnazioDS/IgnazioDS/blob/main/TELEMETRY_SCHEMA.md) — what the Tier-B counters mean and what they don't
 - **Status of this project**: showcase-tier. The harness graduates when the regression-tracking ledger and the deploy gate ship.
+- **Status of this project**: prototype-tier. The local harness ships today; the next step is stronger scoring, richer traces, and CI-grade regression gates.
 
 ---
 

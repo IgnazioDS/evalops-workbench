@@ -1,0 +1,50 @@
+[
+  {
+    "id": "refund_policy",
+    "input": "A customer asks whether they can receive a refund after 10 days on the Starter plan.",
+    "expected": "Answer the refund question using the 14-day window and mention email support.",
+    "reference_answer": "Starter customers can request a refund within 14 days of purchase. Ask them to contact support@acme.test so the billing team can process it.",
+    "rubric": {
+      "required_keywords": ["14 days", "support@acme.test", "refund"],
+      "forbidden_keywords": ["guaranteed approval"],
+      "pass_threshold": 1.0
+    },
+    "tags": ["billing", "policy"]
+  },
+  {
+    "id": "sla_enterprise",
+    "input": "An enterprise prospect asks what response SLA they receive on the Enterprise tier.",
+    "expected": "State the four-hour first-response SLA and dedicated Slack support.",
+    "reference_answer": "Enterprise customers receive a four-hour first-response SLA and a dedicated Slack escalation channel for urgent incidents.",
+    "rubric": {
+      "required_keywords": ["four-hour", "Slack", "SLA"],
+      "forbidden_keywords": ["24-hour"],
+      "pass_threshold": 1.0
+    },
+    "tags": ["enterprise", "support"]
+  },
+  {
+    "id": "seat_upgrade",
+    "input": "A workspace admin wants to add two more seats before renewal.",
+    "expected": "Say seats can be added immediately and are prorated.",
+    "reference_answer": "They can add seats immediately from billing settings, and the extra seats will be prorated for the remainder of the billing period.",
+    "rubric": {
+      "required_keywords": ["immediately", "prorated", "billing settings"],
+      "forbidden_keywords": ["wait until renewal"],
+      "pass_threshold": 1.0
+    },
+    "tags": ["billing", "self-serve"]
+  },
+  {
+    "id": "data_residency",
+    "input": "A security reviewer asks whether customer data is stored in the EU today.",
+    "expected": "Say the default region is US and EU residency is on the roadmap.",
+    "reference_answer": "Today the default hosting region is the US. EU data residency is on the roadmap, but it is not generally available yet.",
+    "rubric": {
+      "required_keywords": ["US", "roadmap", "not generally available"],
+      "forbidden_keywords": ["already available in the EU"],
+      "pass_threshold": 1.0
+    },
+    "tags": ["security", "compliance"]
+  }
+]

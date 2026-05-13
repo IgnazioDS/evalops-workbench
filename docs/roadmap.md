@@ -2,19 +2,19 @@
 
 ## Phase 1
 
-- Load datasets from JSON or CSV
-- Run prompt or agent variants
-- Score outputs with rubric functions
-- Compare runs and export regressions
+- Ship the first local harness slice
+- Load JSON datasets with typed rubric contracts
+- Run named prompt variants and persist case-level artifacts
+- Compare historical runs and surface regressions
 
 ## Phase 2
 
-- Add production integrations for the target users.
-- Introduce persistence and operational telemetry.
+- Add CSV ingestion and richer scorer types.
+- Introduce structured traces and CI-grade exit codes.
 - Expose a service layer beyond the local CLI.
 
 ## Phase 3
 
-- Harden deployment story.
-- Add richer validation and failure handling.
-- Publish sample data and demos.
+- Harden deployment and branch-gate workflow.
+- Add deeper validation and failure handling.
+- Expand sample datasets, variants, and benchmark demos.
