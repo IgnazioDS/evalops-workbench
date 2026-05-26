@@ -60,6 +60,7 @@ class LiveResponseTests(unittest.TestCase):
         response = stats._build_response()
 
         self.assertEqual(response["mode"], "live")
+        self.assertEqual(response["workload"], "benchmark")
         self.assertEqual(response["status"], "operational")
         self.assertEqual(response["schema_version"], 1)
         self.assertEqual(set(response["metrics"]), _TIER_A_METRICS)
