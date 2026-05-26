@@ -1,0 +1,77 @@
+name: Benchmark
+
+# The benchmark is deterministic and reproducible. This workflow re-verifies it
+# weekly (and on demand), refreshes the published artifact, and commits the
+# result back to the repo, where /api/benchmark-latest and /api/stats serve it.
+# It is reproducibility verification, not synthetic daily activity.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Run benchmark
+        run: python -m evalops_workbench.benchmark_runner
+
+      - name: Validate published artifact
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+
+          artifact = json.load(open("api/_benchmark_latest.json"))
+          assert artifact["system"] == "evalops", "wrong system"
+          assert artifact["schema_version"] == 1, "schema_version must be 1"
+          assert artifact["benchmark_type"] == "eval", "wrong benchmark_type"
+          assert artifact["metrics"], "metrics missing"
+          assert artifact["generated_at"], "generated_at missing"
+          generated = datetime.strptime(
+              artifact["generated_at"], "%Y-%m-%dT%H:%M:%SZ"
+          ).replace(tzinfo=timezone.utc)
+          age = (datetime.now(timezone.utc) - generated).total_seconds()
+          assert age < 600, f"artifact is stale ({age:.0f}s old)"
+          print(f"artifact valid; {artifact['metrics']['n_cases']} cases; age {age:.0f}s")
+          PY
+
+      - name: Commit results if changed
+        run: |
+          git config user.name "eleventh-bot"
+          git config user.email "noreply@eleventh.dev"
+          git add api/_benchmark_latest.json api/_benchmark_history.json \
+                  examples/benchmark-v1/results examples/benchmark-v1/pinned-baseline.json
+          if git diff --cached --quiet; then
+            echo "No benchmark changes to commit."
+          else
+            git commit -m "chore(benchmark): scheduled run [skip ci]"
+            git push
+          fi
+
+      - name: Live endpoint check (soft)
+        continue-on-error: true
+        run: |
+          sleep 20
+          for path in stats benchmark-latest; do
+            url="https://evalops-workbench.eleventh.dev/api/$path"
+            echo "GET $url"
+            curl -s --max-time 30 -A "Mozilla/5.0 ci" "$url" \
+              | python -c "import sys, json; d = json.load(sys.stdin); print('  ', {k: d.get(k) for k in ('system', 'mode', 'status', 'schema_version', 'benchmark_type')})" \
+              || echo "  (endpoint not reachable yet; redeploy may be in flight)"
+          done

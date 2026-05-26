@@ -4,57 +4,59 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ExternalLink,
-  GitCommit,
+  FileText,
+  FlaskConical,
+  GitCompare,
   Github,
-  Lightbulb,
-  Star,
-  TrendingUp,
+  ShieldAlert,
+  Target,
   Users,
 } from "lucide-react";
-import { fetchPublicStats, type PublicStats } from "@/lib/api";
+import {
+  fetchBenchmarkLatest,
+  fetchPublicStats,
+  type PublicBenchmark,
+  type PublicStats,
+} from "@/lib/api";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusDot } from "@/components/ui/status-dot";
-import { StatCard } from "@/components/dashboard/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkline } from "@/components/ui/sparkline";
 import { PROJECT } from "@/lib/project";
-import { formatRelative } from "@/lib/utils";
+import { formatNumber, formatRelative } from "@/lib/utils";
 
-/**
- * Build a deterministic 10-point shape derived from the live value, so
- * StatCard sparklines convey velocity without claiming a measured history
- * the showcase tier doesn't have.
- */
-function shapeFromValue(target: number, points = 10): number[] {
-  if (target <= 0) return Array(points).fill(0);
-  const result: number[] = [];
-  for (let i = 0; i < points; i++) {
-    const ratio = i / (points - 1);
-    const eased = ratio * ratio;
-    const wobble = Math.sin(i + target) * 0.06;
-    result.push(target * (eased + wobble + 0.1));
-  }
-  return result;
+function pct(value: number | undefined): string {
+  if (value === undefined || Number.isNaN(value)) return "—";
+  return `${Math.round(value * 100)}%`;
+}
+
+function signedPoints(value: number): string {
+  const points = Math.round(value * 100);
+  return `${points >= 0 ? "+" : ""}${points} pts`;
 }
 
 export default function OverviewPage() {
   const [stats, setStats] = useState<PublicStats | null>(null);
+  const [benchmark, setBenchmark] = useState<PublicBenchmark | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPublicStats()
-      .then(setStats)
-      .catch(() => null)
+    Promise.allSettled([fetchPublicStats(), fetchBenchmarkLatest()])
+      .then(([statsResult, benchmarkResult]) => {
+        if (statsResult.status === "fulfilled") setStats(statsResult.value);
+        if (benchmarkResult.status === "fulfilled") setBenchmark(benchmarkResult.value);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const commitsTotal = (stats?.metrics.commits_total as number | undefined) ?? 0;
-  const commits30d = (stats?.metrics.commits_30d as number | undefined) ?? 0;
-  const stars = (stats?.metrics.repo_stars as number | undefined) ?? 0;
-  const loc = (stats?.metrics.lines_of_code as number | undefined) ?? 0;
+  const metrics = stats?.metrics ?? {};
+  const lastPass = metrics.last_pass_rate as number | undefined;
+  const rolling = metrics.rolling_pass_rate_7d as number | undefined;
+  const regressions = metrics.regressions_caught_30d as number | undefined;
+  const runs = metrics.eval_runs_total as number | undefined;
+  const experiments = metrics.experiments_tracked as number | undefined;
 
   return (
     <>
@@ -103,11 +105,7 @@ export default function OverviewPage() {
                   </a>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <a
-                    href={PROJECT.github_url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <a href={PROJECT.github_url} target="_blank" rel="noreferrer">
                     <Github />
                     GitHub
                   </a>
@@ -116,42 +114,34 @@ export default function OverviewPage() {
             </CardContent>
           </Card>
 
-          {/* Stat row — wired to real /api/stats Tier-B values */}
+          {/* Tier-A stat row — wired to real /api/stats live values */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              title="Commits · total"
-              value={commitsTotal}
-              subtitle="GitHub history"
-              icon={GitCommit}
-              sparkData={shapeFromValue(commitsTotal)}
+            <Stat
+              title="Last pass rate"
+              value={pct(lastPass)}
+              subtitle="Candidate, latest run"
+              icon={Target}
               loading={loading}
             />
-            <StatCard
-              title="Commits · 30d"
-              value={commits30d}
-              subtitle="Trailing 30 days"
-              icon={TrendingUp}
-              sparkData={shapeFromValue(commits30d)}
+            <Stat
+              title="Pass rate · 7d"
+              value={pct(rolling)}
+              subtitle="Rolling mean"
+              icon={GitCompare}
               loading={loading}
             />
-            <StatCard
-              title="Repo stars"
-              value={stars}
-              subtitle="GitHub"
-              icon={Star}
-              sparkData={shapeFromValue(stars)}
+            <Stat
+              title="Regressions · 30d"
+              value={regressions === undefined ? "—" : formatNumber(regressions)}
+              subtitle="Distinct cases caught"
+              icon={ShieldAlert}
               loading={loading}
             />
-            <StatCard
-              title="Lines of code"
-              value={loc}
-              subtitle={
-                stats?.metrics.primary_language
-                  ? `Mostly ${stats.metrics.primary_language}`
-                  : "All sources"
-              }
-              icon={Lightbulb}
-              sparkData={shapeFromValue(loc)}
+            <Stat
+              title="Eval runs"
+              value={runs === undefined ? "—" : formatNumber(runs)}
+              subtitle={experiments ? `${experiments} variants tracked` : "Recorded runs"}
+              icon={FlaskConical}
               loading={loading}
             />
           </div>
@@ -160,15 +150,9 @@ export default function OverviewPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between border-b border-border-subtle py-3">
               <CardTitle>System status</CardTitle>
-              <Badge
-                variant={
-                  stats?.status === "operational" ? "success" : "warning"
-                }
-              >
+              <Badge variant={stats?.status === "operational" ? "success" : "warning"}>
                 <StatusDot
-                  tone={
-                    stats?.status === "operational" ? "success" : "warning"
-                  }
+                  tone={stats?.status === "operational" ? "success" : "warning"}
                   pulse={stats?.status === "operational"}
                   size="sm"
                 />
@@ -176,15 +160,11 @@ export default function OverviewPage() {
               </Badge>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-4">
+              <StatusCell label="Mode" value={stats?.mode ?? "live"} hint="Tier A · live workload" />
               <StatusCell
-                label="Mode"
-                value={stats?.mode ?? "showcase"}
-                hint="Tier B — see schema"
-              />
-              <StatusCell
-                label="Last commit"
-                value={formatRelative(stats?.last_commit_at)}
-                hint={stats?.last_commit_at ?? "never"}
+                label="Last eval run"
+                value={formatRelative(stats?.last_active_at)}
+                hint={stats?.last_active_at ?? "never"}
               />
               <StatusCell
                 label="Last deploy"
@@ -199,7 +179,10 @@ export default function OverviewPage() {
             </CardContent>
           </Card>
 
-          {/* Users + audience */}
+          {/* Latest benchmark */}
+          <BenchmarkCard benchmark={benchmark} loading={loading} />
+
+          {/* Built for + MVP */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-1">
               <CardHeader>
@@ -214,9 +197,9 @@ export default function OverviewPage() {
                   Stack
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {PROJECT.stack.map((s) => (
-                    <Badge key={s} variant="muted">
-                      {s}
+                  {PROJECT.stack.map((item) => (
+                    <Badge key={item} variant="muted">
+                      {item}
                     </Badge>
                   ))}
                 </div>
@@ -224,14 +207,14 @@ export default function OverviewPage() {
             </Card>
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>What ships first</CardTitle>
-                <CardDescription>The MVP scope this project commits to.</CardDescription>
+                <CardTitle>What ships now</CardTitle>
+                <CardDescription>The harness capabilities, live in this repo.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2.5">
-                  {PROJECT.mvp.map((item, i) => (
+                  {PROJECT.mvp.map((item, index) => (
                     <li
-                      key={i}
+                      key={index}
                       className="flex items-start gap-3 text-sm text-foreground-muted"
                     >
                       <span className="mt-1.5 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
@@ -245,6 +228,192 @@ export default function OverviewPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function BenchmarkCard({
+  benchmark,
+  loading,
+}: {
+  benchmark: PublicBenchmark | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <Skeleton className="h-40 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!benchmark || benchmark.status === "pending" || !benchmark.metrics) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Latest benchmark</CardTitle>
+          <CardDescription>No run has been published yet.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const metrics = benchmark.metrics;
+  const variants = benchmark.variants ?? [];
+  const regressions = benchmark.regressions ?? [];
+  const urls = benchmark.artifact_urls;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between border-b border-border-subtle py-3">
+        <div>
+          <CardTitle>Latest benchmark</CardTitle>
+          <CardDescription>
+            {benchmark.fixture} · {metrics.n_cases} cases · generated{" "}
+            {formatRelative(benchmark.generated_at)}
+          </CardDescription>
+        </div>
+        <Badge variant={metrics.gate_verdict === "pass" ? "success" : "warning"}>
+          gate {metrics.gate_verdict}
+        </Badge>
+      </CardHeader>
+      <CardContent className="space-y-4 py-4">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-2xs uppercase tracking-wider text-foreground-faint">
+                <th className="py-1.5 text-left font-medium">Variant</th>
+                <th className="py-1.5 text-right font-medium">Pass rate</th>
+                <th className="py-1.5 text-right font-medium">Avg score</th>
+                <th className="py-1.5 text-right font-medium">Passed</th>
+              </tr>
+            </thead>
+            <tbody className="tabular-nums">
+              {variants.map((variant) => {
+                const role =
+                  variant.name === metrics.candidate_variant
+                    ? "candidate"
+                    : variant.name === metrics.baseline_variant
+                    ? "baseline"
+                    : "";
+                return (
+                  <tr key={variant.name} className="border-t border-border-subtle">
+                    <td className="py-1.5 text-left font-mono text-xs text-foreground">
+                      {variant.name}
+                      {role && (
+                        <span className="ml-1.5 text-2xs text-foreground-subtle">({role})</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 text-right text-foreground-muted">
+                      {pct(variant.pass_rate)}
+                    </td>
+                    <td className="py-1.5 text-right text-foreground-muted">
+                      {pct(variant.avg_score)}
+                    </td>
+                    <td className="py-1.5 text-right text-foreground-muted">
+                      {variant.passed_cases}/{variant.total_cases}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-md border border-border-subtle bg-surface-2 px-3 py-2.5">
+            <p className="text-2xs uppercase tracking-wider text-foreground-faint">
+              Candidate vs baseline
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              pass rate{" "}
+              <span className="font-semibold text-success">
+                {signedPoints(metrics.pass_rate_delta)}
+              </span>
+              , avg score{" "}
+              <span className="font-semibold text-success">
+                {signedPoints(metrics.avg_score_delta)}
+              </span>
+            </p>
+          </div>
+          <div className="rounded-md border border-border-subtle bg-surface-2 px-3 py-2.5">
+            <p className="text-2xs uppercase tracking-wider text-foreground-faint">
+              Regressions / improvements
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              <span className="font-semibold text-warning">{metrics.regressions}</span> regressed,{" "}
+              <span className="font-semibold text-success">{metrics.improvements}</span> improved
+            </p>
+          </div>
+        </div>
+
+        {regressions.length > 0 && (
+          <ul className="space-y-1.5">
+            {regressions.slice(0, 3).map((regression) => (
+              <li
+                key={regression.case_id}
+                className="flex items-start gap-2 text-2xs text-foreground-muted"
+              >
+                <span className="mt-1 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
+                <span className="font-mono text-foreground-subtle">{regression.case_id}</span>{" "}
+                {regression.reason}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {urls && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button asChild size="sm" variant="outline">
+              <a href={urls.report} target="_blank" rel="noreferrer">
+                <FileText />
+                Full report
+              </a>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <a href={urls.fixture} target="_blank" rel="noreferrer">
+                Fixture
+              </a>
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  loading,
+}: {
+  title: string;
+  value: string;
+  subtitle?: string;
+  icon: typeof Target;
+  loading: boolean;
+}) {
+  return (
+    <Card>
+      <div className="p-4">
+        <div className="flex items-start justify-between">
+          <p className="text-2xs font-medium uppercase tracking-wider text-foreground-faint">
+            {title}
+          </p>
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface-2 text-foreground-muted">
+            <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </div>
+        </div>
+        {loading ? (
+          <Skeleton className="mt-2 h-7 w-20" />
+        ) : (
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
+        )}
+        {subtitle && <p className="mt-0.5 text-2xs text-foreground-subtle">{subtitle}</p>}
+      </div>
+    </Card>
   );
 }
 
@@ -262,14 +431,8 @@ function StatusCell({
       <p className="text-2xs font-medium uppercase tracking-wider text-foreground-faint">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">
-        {value}
-      </p>
-      {hint && (
-        <p className="mt-0.5 text-2xs text-foreground-subtle truncate">
-          {hint}
-        </p>
-      )}
+      <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</p>
+      {hint && <p className="mt-0.5 text-2xs text-foreground-subtle truncate">{hint}</p>}
     </div>
   );
 }
