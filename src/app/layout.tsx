@@ -11,14 +11,19 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { PROJECT } from "@/lib/project";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(`https://${PROJECT.slug}.vercel.app`),
+  metadataBase: new URL(PROJECT.live_url),
   title: {
     default: `${PROJECT.name} — ${PROJECT.summary.replace(/\.$/, "")}`,
     template: `%s · ${PROJECT.name}`,
   },
   description: PROJECT.summary,
   applicationName: PROJECT.name,
-  authors: [{ name: "Ignazio De Santis" }],
+  authors: [
+    { name: "Ignazio De Santis" },
+    { name: "Eleventh Solutions", url: "https://eleventh.dev" },
+  ],
+  creator: "Eleventh Solutions",
+  publisher: "Eleventh Solutions",
   keywords: [PROJECT.category, PROJECT.track, ...PROJECT.stack],
   openGraph: {
     type: "website",
@@ -38,7 +43,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#08080d" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0b0d" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
   ],
 };

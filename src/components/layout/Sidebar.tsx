@@ -11,9 +11,9 @@ import {
   Search,
   Settings,
   Sparkles,
-  Zap,
 } from "lucide-react";
 import { useCommandPalette } from "./CommandPalette";
+import { EleventhBrandTile, EleventhFooter } from "@/components/brand/Eleventh";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { cn, isMac } from "@/lib/utils";
@@ -80,14 +80,13 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-[216px] shrink-0 flex-col border-r border-border-subtle bg-surface">
       <div className="flex h-12 items-center gap-2 border-b border-border-subtle px-3">
+        <EleventhBrandTile />
+        <span className="shrink-0 text-sm text-foreground-faint">/</span>
         <Link
           href="/"
-          className="flex items-center gap-2 group min-w-0"
+          className="flex min-w-0 items-center"
           aria-label={`${PROJECT.name} home`}
         >
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-brand text-brand-foreground shrink-0">
-            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-          </div>
           <p className="text-sm font-semibold tracking-tight text-foreground truncate">
             {PROJECT.name}
           </p>
@@ -128,7 +127,7 @@ export function Sidebar() {
         {SECONDARY.map(renderItem)}
       </nav>
 
-      <div className="border-t border-border-subtle p-3">
+      <div className="border-t border-border-subtle p-3 space-y-2">
         <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-2.5 py-1.5">
           <Compass className="h-3 w-3 text-foreground-faint shrink-0" />
           <div className="leading-none min-w-0">
@@ -140,6 +139,7 @@ export function Sidebar() {
             </p>
           </div>
         </div>
+        <EleventhFooter />
       </div>
     </aside>
   );

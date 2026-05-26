@@ -29,11 +29,12 @@
     --border-strong:     240 6% 22%;
     --border-subtle:     240 6% 9%;
 
-    /* Brand */
-    --brand:             238 84% 67%;
-    --brand-strong:      238 84% 60%;
-    --brand-foreground:  0 0% 100%;
-    --ring:              238 84% 67%;
+    /* Brand — Eleventh phosphor green (#3DDC84). Dark ink on the
+       accent so CTAs/logo tiles stay legible (white-on-green fails). */
+    --brand:             147 71% 55%;
+    --brand-strong:      147 64% 47%;
+    --brand-foreground:  240 10% 4%;
+    --ring:              147 71% 55%;
 
     /* Semantic */
     --success: 158 64% 52%;
@@ -61,7 +62,7 @@
     --border:            240 6% 90%;
     --border-strong:     240 6% 84%;
     --border-subtle:     240 6% 94%;
-    --ring:              238 84% 67%;
+    --ring:              147 71% 55%;
   }
 
   *,
