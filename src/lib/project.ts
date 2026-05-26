@@ -26,13 +26,13 @@ export const PROJECT: ProjectSpec = {
   name: "EvalOps Workbench",
   category: "Developer Tool",
   track: "LLM",
-  stage: "Researching",
+  stage: "Prototype",
   summary:
     "A local-first evaluation harness for prompts, tools, and agents with regression tracking and experiment history.",
   problem:
     "LLM teams lack a lightweight way to compare prompt and tool changes before shipping.",
   users: "Agent builders, prompt engineers, applied AI teams",
-  stack: ["Python", "Typer", "DuckDB", "OpenTelemetry"],
+  stack: ["Python", "GitHub Actions", "Vercel"],
   why_now:
     "Evaluation is moving from optional best practice to baseline engineering hygiene.",
   mvp: [

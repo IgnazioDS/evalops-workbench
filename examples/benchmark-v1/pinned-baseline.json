@@ -1,0 +1,9 @@
+{
+  "variant": "span_extract",
+  "metric": "token_f1",
+  "aggregate": {
+    "exact_match": 0.631579,
+    "token_f1": 0.651316,
+    "contains_gold": 0.684211
+  }
+}

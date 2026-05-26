@@ -1,0 +1,202 @@
+{
+  "system": "evalops",
+  "benchmark_type": "eval",
+  "run_id": "evalops-2026-05-26-308b0b20",
+  "fixture": "benchmark-v1",
+  "metrics": {
+    "n_cases": 38,
+    "baseline_variant": "overlap_sentence",
+    "candidate_variant": "span_extract",
+    "exact_match": 0.631579,
+    "token_f1": 0.651316,
+    "contains_gold": 0.684211,
+    "improvement_exact_match": 0.631579,
+    "improvement_token_f1": 0.377036,
+    "regressions": 12,
+    "pass_rate": 0.631579,
+    "gate_verdict": "pass"
+  },
+  "variants": [
+    {
+      "name": "first_sentence",
+      "exact_match": 0.0,
+      "token_f1": 0.27428,
+      "contains_gold": 1.0
+    },
+    {
+      "name": "overlap_sentence",
+      "exact_match": 0.0,
+      "token_f1": 0.27428,
+      "contains_gold": 1.0
+    },
+    {
+      "name": "span_extract",
+      "exact_match": 0.631579,
+      "token_f1": 0.651316,
+      "contains_gold": 0.684211
+    }
+  ],
+  "regressions": [
+    {
+      "case_id": "adv-01",
+      "metric": "token_f1",
+      "baseline": 0.153846,
+      "candidate": 0.0,
+      "delta": -0.153846,
+      "reason": "token_f1: candidate 0.00 below baseline 0.15 (-0.15)",
+      "tags": [
+        "adversarial",
+        "who"
+      ]
+    },
+    {
+      "case_id": "adv-02",
+      "metric": "token_f1",
+      "baseline": 0.333333,
+      "candidate": 0.0,
+      "delta": -0.333333,
+      "reason": "token_f1: candidate 0.00 below baseline 0.33 (-0.33)",
+      "tags": [
+        "adversarial",
+        "who"
+      ]
+    },
+    {
+      "case_id": "adv-03",
+      "metric": "token_f1",
+      "baseline": 0.307692,
+      "candidate": 0.0,
+      "delta": -0.307692,
+      "reason": "token_f1: candidate 0.00 below baseline 0.31 (-0.31)",
+      "tags": [
+        "adversarial",
+        "who"
+      ]
+    },
+    {
+      "case_id": "adv-04",
+      "metric": "token_f1",
+      "baseline": 0.333333,
+      "candidate": 0.0,
+      "delta": -0.333333,
+      "reason": "token_f1: candidate 0.00 below baseline 0.33 (-0.33)",
+      "tags": [
+        "adversarial",
+        "who"
+      ]
+    },
+    {
+      "case_id": "adv-05",
+      "metric": "token_f1",
+      "baseline": 0.166667,
+      "candidate": 0.0,
+      "delta": -0.166667,
+      "reason": "token_f1: candidate 0.00 below baseline 0.17 (-0.17)",
+      "tags": [
+        "adversarial",
+        "where"
+      ]
+    },
+    {
+      "case_id": "adv-06",
+      "metric": "token_f1",
+      "baseline": 0.166667,
+      "candidate": 0.0,
+      "delta": -0.166667,
+      "reason": "token_f1: candidate 0.00 below baseline 0.17 (-0.17)",
+      "tags": [
+        "adversarial",
+        "where"
+      ]
+    },
+    {
+      "case_id": "adv-07",
+      "metric": "token_f1",
+      "baseline": 0.153846,
+      "candidate": 0.0,
+      "delta": -0.153846,
+      "reason": "token_f1: candidate 0.00 below baseline 0.15 (-0.15)",
+      "tags": [
+        "adversarial",
+        "where"
+      ]
+    },
+    {
+      "case_id": "adv-08",
+      "metric": "token_f1",
+      "baseline": 0.166667,
+      "candidate": 0.0,
+      "delta": -0.166667,
+      "reason": "token_f1: candidate 0.00 below baseline 0.17 (-0.17)",
+      "tags": [
+        "adversarial",
+        "when"
+      ]
+    },
+    {
+      "case_id": "adv-09",
+      "metric": "token_f1",
+      "baseline": 0.181818,
+      "candidate": 0.0,
+      "delta": -0.181818,
+      "reason": "token_f1: candidate 0.00 below baseline 0.18 (-0.18)",
+      "tags": [
+        "adversarial",
+        "when"
+      ]
+    },
+    {
+      "case_id": "adv-10",
+      "metric": "token_f1",
+      "baseline": 0.181818,
+      "candidate": 0.0,
+      "delta": -0.181818,
+      "reason": "token_f1: candidate 0.00 below baseline 0.18 (-0.18)",
+      "tags": [
+        "adversarial",
+        "when"
+      ]
+    },
+    {
+      "case_id": "adv-11",
+      "metric": "token_f1",
+      "baseline": 0.181818,
+      "candidate": 0.0,
+      "delta": -0.181818,
+      "reason": "token_f1: candidate 0.00 below baseline 0.18 (-0.18)",
+      "tags": [
+        "adversarial",
+        "how-many"
+      ]
+    },
+    {
+      "case_id": "adv-12",
+      "metric": "token_f1",
+      "baseline": 0.2,
+      "candidate": 0.0,
+      "delta": -0.2,
+      "reason": "token_f1: candidate 0.00 below baseline 0.20 (-0.20)",
+      "tags": [
+        "adversarial",
+        "how-many"
+      ]
+    }
+  ],
+  "gate": {
+    "passed": true,
+    "metric": "token_f1",
+    "pinned": null,
+    "observed": 0.651316,
+    "reasons": [
+      "no pinned baseline yet; this run establishes the contract"
+    ]
+  },
+  "artifact_urls": {
+    "report": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main/examples/benchmark-v1/results/latest-report.md",
+    "fixture": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main/examples/benchmark-v1/cases.jsonl",
+    "run": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main/examples/benchmark-v1/results/archive/evalops-2026-05-26-308b0b20.json"
+  },
+  "schema_version": 1,
+  "generated_at": "2026-05-26T06:49:52Z",
+  "previous_run": null
+}

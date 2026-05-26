@@ -1,0 +1,30 @@
+[
+  {
+    "run_id": "evalops-2026-05-26-308b0b20",
+    "generated_at": "2026-05-26T06:49:52Z",
+    "pass_rate": 0.631579,
+    "token_f1": 0.651316,
+    "exact_match": 0.631579,
+    "regressions": 12,
+    "regressed_ids": [
+      "adv-01",
+      "adv-02",
+      "adv-03",
+      "adv-04",
+      "adv-05",
+      "adv-06",
+      "adv-07",
+      "adv-08",
+      "adv-09",
+      "adv-10",
+      "adv-11",
+      "adv-12"
+    ],
+    "gate_verdict": "pass",
+    "variants": [
+      "first_sentence",
+      "overlap_sentence",
+      "span_extract"
+    ]
+  }
+]
