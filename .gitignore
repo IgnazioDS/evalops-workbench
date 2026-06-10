@@ -22,6 +22,9 @@ __pycache__/
 dist/
 build/
 
+# Test coverage
+coverage/
+
 # OS
 .DS_Store
 
