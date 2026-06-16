@@ -38,6 +38,12 @@ CANDIDATE_VARIANT = "prompt_v2"
 GATE_KWARGS = {"max_regressions": 0, "max_score_drop": 0.0, "max_pass_rate_drop": 0.0}
 
 _RAW_BASE = "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main"
+# Runner-produced artifacts (report, per-run archive) are published to the
+# unprotected telemetry branch, since the default branch is ruleset-protected.
+# Static inputs (the fixture) stay on main.
+_TELEMETRY_RAW_BASE = (
+    "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/telemetry"
+)
 _HISTORY_KEEP = 100
 
 
@@ -130,9 +136,9 @@ def _build_artifact(*, base, candidate, comparison, gate, generated_at, previous
             "max_pass_rate_drop": gate.max_pass_rate_drop,
         },
         "artifact_urls": {
-            "report": f"{_RAW_BASE}/examples/benchmark/latest-report.md",
+            "report": f"{_TELEMETRY_RAW_BASE}/examples/benchmark/latest-report.md",
             "fixture": f"{_RAW_BASE}/{DATASET_REL}",
-            "run": f"{_RAW_BASE}/examples/benchmark/archive/{run_id}.json",
+            "run": f"{_TELEMETRY_RAW_BASE}/examples/benchmark/archive/{run_id}.json",
         },
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at,

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
@@ -26,6 +27,12 @@ SCHEMA_VERSION = 1
 ARTIFACT_FILE = Path(__file__).parent / "_benchmark_latest.json"
 HISTORY_FILE = Path(__file__).parent / "_benchmark_history.json"
 STATIC_FILE = Path(__file__).parent / "_telemetry_static.json"
+
+# The scheduled benchmark publishes here because main is ruleset-protected.
+_TELEMETRY_RAW_BASE = (
+    "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/telemetry/api/"
+)
+_FETCH_TIMEOUT_S = 2.5
 
 # Sanity caps: never expose values larger than these (defence against a runaway
 # history file). The benchmark publishes one run per scheduled invocation.
@@ -50,6 +57,27 @@ def _read_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError):
+        return None
+
+
+def _fetch_remote_json(filename: str) -> Any:
+    """Best-effort fetch of the freshest artifact from the telemetry data branch.
+
+    Returns None on any failure so the caller falls back to the committed copy.
+    Only runs in the deployed Vercel runtime; tests/local use the committed copy.
+    """
+    if not os.environ.get("VERCEL"):
+        return None
+    try:
+        req = urllib.request.Request(
+            _TELEMETRY_RAW_BASE + filename,
+            headers={"User-Agent": f"{SYSTEM_SLUG}-telemetry"},
+        )
+        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_S) as resp:
+            if resp.status != 200:
+                return None
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:  # noqa: BLE001 - the contract forbids 5xx; fall back instead
         return None
 
 
@@ -114,8 +142,14 @@ def _build_response() -> dict[str, Any]:
     static = _read_json(STATIC_FILE) or {}
     last_deployed_at = os.environ.get("VERCEL_GIT_COMMIT_AUTHOR_DATE") or static.get("built_at")
 
-    history = _read_json(HISTORY_FILE)
-    artifact = _read_json(ARTIFACT_FILE)
+    # Prefer the freshest artifact from the telemetry branch; fall back to the
+    # copy committed on main so a network blip degrades gracefully.
+    history = _fetch_remote_json("_benchmark_history.json")
+    if not isinstance(history, list):
+        history = _read_json(HISTORY_FILE)
+    artifact = _fetch_remote_json("_benchmark_latest.json")
+    if not isinstance(artifact, dict):
+        artifact = _read_json(ARTIFACT_FILE)
 
     if isinstance(history, list) and history:
         metrics = _metrics_from_history(history, now)

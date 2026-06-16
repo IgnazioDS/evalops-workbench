@@ -1,9 +1,15 @@
 name: Benchmark
 
 # The benchmark is deterministic and reproducible. This workflow re-verifies it
-# weekly (and on demand), refreshes the published artifact, and commits the
-# result back to the repo, where /api/benchmark-latest and /api/stats serve it.
-# It is reproducibility verification, not synthetic daily activity.
+# weekly (and on demand), refreshes the published artifact, and publishes the
+# result to the unprotected `telemetry` data branch. The default branch is
+# ruleset-protected and the default GITHUB_TOKEN cannot push to it, so the
+# git-as-database loop lives on `telemetry`. The live stdlib endpoints
+# (/api/stats, /api/benchmark-latest) read the freshest artifact from that
+# branch at request time, falling back to the copy committed on main.
+#
+# History accumulates: the runner appends to the prior history, so we seed it
+# from the telemetry branch before each run.
 
 on:
   schedule:
@@ -11,7 +17,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # push the data files to the telemetry branch
 
 jobs:
   benchmark:
@@ -27,6 +33,14 @@ jobs:
 
       - name: Install package
         run: pip install -e .
+
+      - name: Seed accumulated history from telemetry branch
+        run: |
+          if git ls-remote --exit-code --heads origin telemetry >/dev/null 2>&1; then
+            git fetch origin telemetry --depth=1
+            git show origin/telemetry:api/_benchmark_history.json \
+              > api/_benchmark_history.json 2>/dev/null || true
+          fi
 
       - name: Run benchmark
         run: python -m evalops_workbench.benchmark_runner
@@ -51,17 +65,34 @@ jobs:
           print(f"artifact valid; {artifact['metrics']['n_cases']} cases; age {age:.0f}s")
           PY
 
-      - name: Commit results if changed
+      - name: Publish artifacts to telemetry branch
         run: |
-          git config user.name "eleventh-bot"
-          git config user.email "noreply@eleventh.dev"
-          git add api/_benchmark_latest.json api/_benchmark_history.json \
-                  examples/benchmark-v1/results examples/benchmark-v1/pinned-baseline.json
-          if git diff --cached --quiet; then
-            echo "No benchmark changes to commit."
+          stage="$(mktemp -d)"
+          mkdir -p "$stage/api" "$stage/examples"
+          cp api/_benchmark_latest.json api/_benchmark_history.json "$stage/api/"
+          cp -R examples/benchmark "$stage/examples/" 2>/dev/null || true
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin telemetry >/dev/null 2>&1; then
+            git fetch origin telemetry --depth=1
+            git worktree add -B telemetry .telemetry origin/telemetry
           else
-            git commit -m "chore(benchmark): scheduled run [skip ci]"
-            git push
+            git worktree add --orphan -b telemetry .telemetry
+          fi
+
+          mkdir -p .telemetry/api .telemetry/examples
+          cp "$stage/api/"* .telemetry/api/
+          rm -rf .telemetry/examples/benchmark
+          cp -R "$stage/examples/benchmark" .telemetry/examples/ 2>/dev/null || true
+
+          git -C .telemetry add api examples
+          if git -C .telemetry diff --cached --quiet; then
+            echo "No benchmark changes to publish."
+          else
+            git -C .telemetry commit -m "telemetry: scheduled benchmark $(date -u +%Y-%m-%d)"
+            git -C .telemetry push origin telemetry
           fi
 
       - name: Live endpoint check (soft)
@@ -73,5 +104,5 @@ jobs:
             echo "GET $url"
             curl -s --max-time 30 -A "Mozilla/5.0 ci" "$url" \
               | python -c "import sys, json; d = json.load(sys.stdin); print('  ', {k: d.get(k) for k in ('system', 'mode', 'status', 'schema_version', 'benchmark_type')})" \
-              || echo "  (endpoint not reachable yet; redeploy may be in flight)"
+              || echo "  (endpoint not reachable yet)"
           done
