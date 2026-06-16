@@ -4,6 +4,12 @@ name: Benchmark
 # weekly (and on demand), refreshes the published artifact, and commits the
 # result back to the repo, where /api/benchmark-latest and /api/stats serve it.
 # It is reproducibility verification, not synthetic daily activity.
+#
+# The default branch is protected by the "main protection" ruleset, so the
+# default GITHUB_TOKEN cannot push to it. We mint a short-lived token from a
+# scoped GitHub App (fleet-bot) that is on the ruleset bypass list, and push
+# with that. Human PRs are still required for everyone else. Requires two repo
+# secrets: FLEET_BOT_APP_ID, FLEET_BOT_PRIVATE_KEY
 
 on:
   schedule:
@@ -11,14 +17,24 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read # the app token (not GITHUB_TOKEN) performs the write
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
     steps:
+      - name: Mint fleet-bot app token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.FLEET_BOT_APP_ID }}
+          private-key: ${{ secrets.FLEET_BOT_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -51,10 +67,20 @@ jobs:
           print(f"artifact valid; {artifact['metrics']['n_cases']} cases; age {age:.0f}s")
           PY
 
+      - name: Resolve app bot identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          slug="${{ steps.app-token.outputs.app-slug }}"
+          uid="$(gh api "/users/${slug}[bot]" --jq .id)"
+          echo "name=${slug}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${uid}+${slug}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+
       - name: Commit results if changed
         run: |
-          git config user.name "eleventh-bot"
-          git config user.email "noreply@eleventh.dev"
+          git config user.name "${{ steps.bot.outputs.name }}"
+          git config user.email "${{ steps.bot.outputs.email }}"
           git add api/_benchmark_latest.json api/_benchmark_history.json \
                   examples/benchmark-v1/results examples/benchmark-v1/pinned-baseline.json
           if git diff --cached --quiet; then
