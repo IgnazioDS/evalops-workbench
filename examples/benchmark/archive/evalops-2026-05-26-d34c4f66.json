@@ -1,0 +1,52 @@
+{
+  "system": "evalops",
+  "benchmark_type": "eval",
+  "run_id": "evalops-2026-05-26-d34c4f66",
+  "fixture": "support-qa",
+  "metrics": {
+    "n_cases": 4,
+    "baseline_variant": "prompt_v1",
+    "candidate_variant": "prompt_v2",
+    "baseline_pass_rate": 0.0,
+    "candidate_pass_rate": 1.0,
+    "baseline_avg_score": 0.333,
+    "candidate_avg_score": 1.0,
+    "pass_rate_delta": 1.0,
+    "avg_score_delta": 0.667,
+    "regressions": 0,
+    "improvements": 4,
+    "gate_verdict": "pass"
+  },
+  "variants": [
+    {
+      "name": "prompt_v1",
+      "pass_rate": 0.0,
+      "avg_score": 0.333,
+      "passed_cases": 0,
+      "total_cases": 4
+    },
+    {
+      "name": "prompt_v2",
+      "pass_rate": 1.0,
+      "avg_score": 1.0,
+      "passed_cases": 4,
+      "total_cases": 4
+    }
+  ],
+  "regressions": [],
+  "gate": {
+    "passed": true,
+    "reasons": [],
+    "max_regressions": 0,
+    "max_score_drop": 0.0,
+    "max_pass_rate_drop": 0.0
+  },
+  "artifact_urls": {
+    "report": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main/examples/benchmark/latest-report.md",
+    "fixture": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main/examples/support_qa.json",
+    "run": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main/examples/benchmark/archive/evalops-2026-05-26-d34c4f66.json"
+  },
+  "schema_version": 1,
+  "generated_at": "2026-05-26T07:25:34Z",
+  "previous_run": null
+}
