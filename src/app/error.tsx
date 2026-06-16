@@ -50,6 +50,7 @@ export default function Error({
             variant="outline"
             size="default"
           >
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/">Go home</a>
           </Button>
         </div>
