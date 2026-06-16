@@ -10,6 +10,8 @@ valid ``status: "pending"`` envelope.
 from __future__ import annotations
 
 import json
+import os
+import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
@@ -20,9 +22,37 @@ BENCHMARK_TYPE = "eval"
 SCHEMA_VERSION = 1
 ARTIFACT_FILE = Path(__file__).parent / "_benchmark_latest.json"
 
+# The scheduled benchmark publishes here because main is ruleset-protected.
+_TELEMETRY_RAW_BASE = (
+    "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/telemetry/api/"
+)
+_FETCH_TIMEOUT_S = 2.5
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _fetch_remote_json(filename: str) -> dict[str, Any] | None:
+    """Best-effort fetch of the freshest artifact from the telemetry data branch.
+
+    Returns None on any failure so the caller falls back to the committed copy.
+    Only runs in the deployed Vercel runtime; tests/local use the committed copy.
+    """
+    if not os.environ.get("VERCEL"):
+        return None
+    try:
+        req = urllib.request.Request(
+            _TELEMETRY_RAW_BASE + filename,
+            headers={"User-Agent": f"{SYSTEM_SLUG}-telemetry"},
+        )
+        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_S) as resp:
+            if resp.status != 200:
+                return None
+            data = json.loads(resp.read().decode("utf-8"))
+            return data if isinstance(data, dict) else None
+    except Exception:  # noqa: BLE001 - the contract forbids 5xx; fall back instead
+        return None
 
 
 def _pending_payload() -> dict[str, Any]:
@@ -39,6 +69,9 @@ def _pending_payload() -> dict[str, Any]:
 
 
 def build_response() -> dict[str, Any]:
+    remote = _fetch_remote_json("_benchmark_latest.json")
+    if isinstance(remote, dict):
+        return remote
     try:
         return json.loads(ARTIFACT_FILE.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError):
