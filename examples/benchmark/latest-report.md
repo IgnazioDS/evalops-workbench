@@ -1,13 +1,13 @@
 # EvalOps benchmark: support-qa
 
-- Run: `evalops-2026-07-13-d34c4f66`
-- Generated: 2026-07-13T09:36:21Z
+- Run: `evalops-2026-07-20-d34c4f66`
+- Generated: 2026-07-20T09:23:20Z
 - Gate verdict: **PASS**
 
 # EvalOps Comparison Report
 
-- Base run: `run_20260713T093620902672_a7cd95`
-- Candidate run: `run_20260713T093620956724_706ce8`
+- Base run: `run_20260720T092320160041_245427`
+- Candidate run: `run_20260720T092320216847_6b5a7c`
 - Average score delta: `+0.667`
 - Pass-rate delta: `+1.000`
 - Regressions: `0`
