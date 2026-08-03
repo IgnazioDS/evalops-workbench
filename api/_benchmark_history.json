@@ -102,5 +102,18 @@
       "prompt_v1",
       "prompt_v2"
     ]
+  },
+  {
+    "run_id": "evalops-2026-08-03-d34c4f66",
+    "generated_at": "2026-08-03T09:54:33Z",
+    "pass_rate": 1.0,
+    "avg_score": 1.0,
+    "regressions": 0,
+    "regressed_ids": [],
+    "gate_verdict": "pass",
+    "variants": [
+      "prompt_v1",
+      "prompt_v2"
+    ]
   }
 ]
