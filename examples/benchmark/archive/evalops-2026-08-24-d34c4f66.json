@@ -1,7 +1,7 @@
 {
   "system": "evalops",
   "benchmark_type": "eval",
-  "run_id": "evalops-2026-08-17-d34c4f66",
+  "run_id": "evalops-2026-08-24-d34c4f66",
   "fixture": "support-qa",
   "metrics": {
     "n_cases": 4,
@@ -44,13 +44,13 @@
   "artifact_urls": {
     "report": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/telemetry/examples/benchmark/latest-report.md",
     "fixture": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/main/examples/support_qa.json",
-    "run": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/telemetry/examples/benchmark/archive/evalops-2026-08-17-d34c4f66.json"
+    "run": "https://raw.githubusercontent.com/IgnazioDS/evalops-workbench/telemetry/examples/benchmark/archive/evalops-2026-08-24-d34c4f66.json"
   },
   "schema_version": 1,
-  "generated_at": "2026-08-17T07:03:37Z",
+  "generated_at": "2026-08-24T07:06:48Z",
   "previous_run": {
-    "run_id": "evalops-2026-08-10-d34c4f66",
-    "generated_at": "2026-08-10T07:49:31Z",
+    "run_id": "evalops-2026-08-17-d34c4f66",
+    "generated_at": "2026-08-17T07:03:37Z",
     "delta": {
       "pass_rate": 0.0,
       "avg_score": 0.0,
